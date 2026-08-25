@@ -184,7 +184,27 @@ def create_auth_routes(app):
                     "role": default_role,
                 }
             if result.user:
-                return {"status": "signup_pending", "email": signup.email, "role": default_role, "message": "Account created! You can now sign in. Your role: " + default_role}
+                # Try to auto-confirm the user (Supabase email confirmation may be on)
+                try:
+                    # Use admin API to confirm if available
+                    client.auth.admin.update_user_by_id(result.user.id, {"email_confirm": True})
+                except Exception:
+                    pass  # Admin API may not be available
+                # Try to sign in directly — may work if auto-confirm is enabled
+                try:
+                    login_result = client.auth.sign_in_with_password({"email": signup.email, "password": signup.password})
+                    if login_result.session:
+                        return {
+                            "status": "signup_complete",
+                            "access_token": login_result.session.access_token,
+                            "refresh_token": login_result.session.refresh_token,
+                            "expires_at": login_result.session.expires_at,
+                            "user": {"email": login_result.user.email, "id": login_result.user.id},
+                            "role": default_role,
+                        }
+                except Exception:
+                    pass  # Email confirmation required — user must verify
+                return {"status": "signup_pending", "email": signup.email, "role": default_role, "message": "Account created! Please check your email to verify, then sign in. (Or ask admin to disable email confirmation in Supabase Dashboard → Auth → Email)", "needs_verification": True}
             return {"error": "Signup failed"}
         except Exception as e:
             return {"error": str(e)}
@@ -207,7 +227,10 @@ def create_auth_routes(app):
                 }
             return {"error": "Invalid credentials"}
         except Exception as e:
-            return {"error": str(e)}
+            err_msg = str(e)
+            if "email not confirmed" in err_msg.lower() or "not confirmed" in err_msg.lower():
+                return {"error": "Email not confirmed. Please check your inbox for a verification link, or ask the admin to disable email confirmation in Supabase Dashboard > Auth > Email."}
+            return {"error": err_msg}
 
     @app.get("/api/auth/me")
     async def auth_me(user=Depends(require_auth)):
