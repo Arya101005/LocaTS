@@ -476,7 +476,22 @@ function AppContent() {
   );
 
   // Not logged in — show landing page with login/signup
+  // Also, if logged in user is on landing page, redirect based on role
   if (!user) {
+    // If we have a token in localStorage, try to redirect
+    const savedToken = localStorage.getItem('locats_token');
+    const savedRole = localStorage.getItem('locats_role');
+    if (savedToken && savedRole) {
+      window.location.href = savedRole === 'admin' ? '/admin' : '/citizen';
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#F6FAFD' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ width: 52, height: 52, borderRadius: 14, background: 'linear-gradient(135deg, #16A34A, #0D9488)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontWeight: 800, fontSize: 22, color: '#fff' }}>L</div>
+            <div style={{ fontSize: 14, color: '#94A3B8', fontWeight: 500 }}>Redirecting...</div>
+          </div>
+        </div>
+      );
+    }
     return <LandingPage />;
   }
 

@@ -57,7 +57,9 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    if (token) {
+    // Skip profile fetch on landing page — show login instantly
+    const isLandingPage = window.location.pathname === '/';
+    if (token && !isLandingPage) {
       fetchProfile(token).finally(() => setLoading(false));
     } else {
       setLoading(false);
