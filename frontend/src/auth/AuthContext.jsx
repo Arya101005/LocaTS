@@ -87,6 +87,13 @@ export function AuthProvider({ children }) {
   }, []);
 
   const signup = useCallback(async (email, password, name) => {
+    // Clear any stale tokens from previous sessions before signup
+    localStorage.removeItem('locats_token');
+    localStorage.removeItem('locats_role');
+    setToken(null);
+    setUser(null);
+    setProfile(null);
+    setStoredRole(null);
     const res = await fetch(`${API}/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -94,16 +101,7 @@ export function AuthProvider({ children }) {
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
-    if (data.access_token) {
-      localStorage.setItem('locats_token', data.access_token);
-      setToken(data.access_token);
-    }
-    // Store role from signup response
-    if (data.role) {
-      localStorage.setItem('locats_role', data.role);
-      setStoredRole(data.role);
-      setProfile({ role: data.role, email, full_name: name || email });
-    }
+    // Signup NEVER stores tokens — user must sign in explicitly
     return data;
   }, []);
 
