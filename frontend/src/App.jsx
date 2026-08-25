@@ -48,11 +48,32 @@ function LandingPage() {
     setError(''); setSuccess(''); setLoading(true);
     try {
       if (mode === 'login') {
-        await login(email, password);
+        const data = await login(email, password);
+        // Redirect based on role — wait a moment for profile to load
+        setTimeout(() => {
+          const userRole = profile?.role || 'citizen';
+          if (userRole === 'citizen') {
+            window.location.href = '/citizen';
+          } else {
+            window.location.href = '/admin';
+          }
+        }, 500);
       } else {
         const res = await signup(email, password, name);
-        setSuccess(res.message || 'Account created! You can now sign in.');
-        setMode('login');
+        if (res.status === 'signup_complete' && res.access_token) {
+          // Auto-login succeeded — redirect
+          setTimeout(() => {
+            const userRole = res.role || 'citizen';
+            if (userRole === 'citizen') {
+              window.location.href = '/citizen';
+            } else {
+              window.location.href = '/admin';
+            }
+          }, 500);
+        } else {
+          setSuccess(res.message || 'Account created! You can now sign in.');
+          setMode('login');
+        }
       }
     } catch (err) { setError(err.message); }
     finally { setLoading(false); }
@@ -481,22 +502,20 @@ function AppContent() {
     return <LandingPage />;
   }
 
-  // Logged in — redirect citizen to /citizen, others to /admin
+  // Logged in — determine role and route accordingly
   const role = authRole || profile?.role || 'citizen';
+
+  // Citizen portal — completely separate mobile UI
   if (isCitizen) {
     return (
       <Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F0F9F4' }}><div style={{ textAlign: 'center', color: '#6B7280' }}>Loading...</div></div>}>
         <CitizenPortal user={user} profile={profile} onLogout={logout} />
       </Suspense>
     );
-    // Admin/operator on /citizen — redirect to admin
-    window.location.href = '/admin';
-    return null;
   }
 
-  // Not on citizen or audit path — must be admin/operator path
-  if (!isAdmin) {
-    // Redirect based on role
+  // Not on citizen or audit path — redirect based on role
+  if (!isAdmin && !isAudit) {
     if (role === 'citizen') {
       window.location.href = '/citizen';
       return null;
