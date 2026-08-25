@@ -61,23 +61,106 @@ def _local_responder(query: str) -> str:
     result = st.optimizer._last_result if st.optimizer and st.optimizer._last_result else None
     shelter_count = len(st.graph_data.shelters) if st.graph_data else 0
     total_beds = sum(s.bed_capacity for s in st.graph_data.shelters) if st.graph_data else 0
+    hab_count = len(st.graph_data.habitations) if st.graph_data else 0
 
-    if any(w in query for w in ("evacuati", "relocat", "plan", "status")):
-        if result:
-            return (f"Evacuation Plan — {'FEASIBLE' if result.is_feasible else 'INFEASIBLE'}\n"
-                    f"Relocated: {result.total_people_relocated:,} | Unmet: {result.total_people_unmet:,}\n"
-                    f"Shelters: {shelter_count} with {total_beds:,} beds | Solver: {result.solver_time_seconds}s")
-        return f"No optimization yet. {shelter_count} shelters with {total_beds:,} beds ready."
-    if any(w in query for w in ("shelter", "bed", "capacity")):
-        if st.graph_data:
-            lines = [f"{s.name}: {s.bed_capacity:,} beds ({s.bed_capacity - s.beds_occupied:,} free)" for s in st.graph_data.shelters[:8]]
-            return "Shelters:\n" + "\n".join(lines)
-    if any(w in query for w in ("flood", "rain", "water")):
+    # Flood / rain / water questions
+    if any(w in query for w in ("flood", "rain", "water", "monsoon")):
         fz = [z for z in st.static_zones if z.hazard_type.value == "flood"]
-        return f"{len(fz)} flood zones. Severity: {min((z.severity for z in fz), default=0):.0%}-{max((z.severity for z in fz), default=0):.0%}."
-    if any(w in query for w in ("how", "work", "system")):
-        return "LocaTS: Hazard Fusion → Capacity Graph → OR-Tools Optimization → Evacuation Plan. Supports rolling-horizon re-planning."
-    return "Ask about evacuation status, shelters, flood zones, or system capabilities."
+        if fz:
+            lines = [f"  - {z.id}: severity {(z.severity*100):.0f}% ({z.zone_type} zone)" for z in fz[:5]]
+            return (f"Flood Risk Assessment for Chamoli District:\n"
+                    f"{len(fz)} active flood zone(s) detected.\n"
+                    f"Severity range: {min(z.severity for z in fz)*100:.0f}% - {max(z.severity for z in fz)*100:.0f}%\n\n"
+                    f"Zones:\n" + "\n".join(lines) + "\n\n"
+                    f"Recommended actions:\n"
+                    f"1. Monitor IMD rainfall alerts for Chamoli\n"
+                    f"2. Check river levels near Gopeshwar and Joshimath\n"
+                    f"3. Ensure evacuation routes to shelters are clear\n"
+                    f"4. Citizens in low-lying areas should prepare to move")
+        return ("No active flood zones currently mapped in the system.\n"
+                "However, Chamoli is in a high-risk monsoon area.\n"
+                "Stay alert for IMD weather warnings and report any unusual water levels.")
+
+    # Where questions about zones/locations
+    if "where" in query or "location" in query or "area" in query:
+        zones = st.static_zones
+        if zones:
+            zone_info = []
+            for z in zones[:5]:
+                zone_info.append(f"  - {z.hazard_type.value.upper()} zone ({z.id}): severity {(z.severity*100):.0f}%, centered near {z.center}")
+            return ("Active hazard zones in Chamoli district:\n" + "\n".join(zone_info) +
+                    "\n\nKey locations in Chamoli: Gopeshwar (HQ), Joshimath, Badrinath,\n"
+                    "Karnaprayag, Nandprayag, Tharali, Ghat. Most zones are in the\n"
+                    "upper Alaknanda and Dhauli Ganga valleys.")
+        return "No hazard zones are currently mapped. Load hazard data first."
+
+    # Evacuation / plan / status
+    if any(w in query for w in ("evacuati", "relocat", "plan", "status", "need help", "emergency")):
+        if result:
+            return (f"Evacuation Plan Status — {'FEASIBLE' if result.is_feasible else 'INFEASIBLE'}\n\n"
+                    f"People Relocated: {result.total_people_relocated:,}\n"
+                    f"People Unmet (need more shelter): {result.total_people_unmet:,}\n"
+                    f"Active Shelters: {shelter_count} with {total_beds:,} beds\n"
+                    f"Solver: {'OR-Tools optimal' if not result.used_fallback_heuristic else 'Greedy heuristic'} ({result.solver_time_seconds}s)\n\n"
+                    f"{'All people have been assigned to shelters.' if result.is_feasible else 'WARNING: More people need shelter than beds available. Activate nearby district shelters.'}")
+        return (f"No optimization has been run yet.\n\n"
+                f"Current capacity: {shelter_count} shelters with {total_beds:,} beds across Chamoli district.\n"
+                f"To generate an evacuation plan, go to Dashboard and click 'Run Optimization'.")
+
+    # Shelter / bed / capacity
+    if any(w in query for w in ("shelter", "bed", "capacity", "where to go")):
+        if st.graph_data:
+            lines = [f"  {i+1}. {s.name}: {s.bed_capacity:,} beds ({s.bed_capacity - s.beds_occupied:,} free)" for i, s in enumerate(st.graph_data.shelters[:8])]
+            return (f"Shelter Capacity in Chamoli District:\n\n"
+                    f"Total: {shelter_count} shelters, {total_beds:,} beds\n\n"
+                    f"Top shelters:\n" + "\n".join(lines) +
+                    f"\n\nFor emergency evacuation, proceed to the nearest shelter. Follow marked routes.")
+        return "Shelter data not loaded yet."
+
+    # Villages / habitations / risk
+    if any(w in query for w in ("village", "habitation", "risk", "danger", "safe")):
+        if st.hazard_confidences:
+            critical = [(k, v) for k, v in st.hazard_confidences.items() if v.alert_level.value in ("evacuate", "relocate")]
+            advisory = [(k, v) for k, v in st.hazard_confidences.items() if v.alert_level.value == "advisory"]
+            return (f"Village Risk Assessment:\n\n"
+                    f"{len(critical)} villages at CRITICAL risk (evacuate immediately)\n"
+                    f"{len(advisory)} villages at ADVISORY level (prepare to move)\n"
+                    f"Total habitations monitored: {hab_count}\n\n"
+                    f"Critical villages: {', '.join(k.split(':')[0] for k, _ in critical[:5])}\n"
+                    f"Check the Dashboard map for detailed risk visualization.")
+        return f"{habitations_count} villages loaded. Run fusion scoring to see risk levels."
+
+    # How / system / feature questions
+    if any(w in query for w in ("how", "work", "system", "feature", "explain")):
+        return ("LocaTS System Overview:\n\n"
+                "1. Hazard Fusion — Combines static hazard maps (Bhuvan/NDMA), live sensor data\n"
+                "   (IMD rainfall), and citizen crowd reports using Bayesian weighted scoring.\n"
+                "2. Capacity Graph — Models shelters, roads, and population using OSM data.\n"
+                "3. OR-Tools Optimizer — Solves the transportation problem: which village goes\n"
+                "   to which shelter, minimizing distance while respecting capacity.\n"
+                "4. Rolling-horizon — Re-plans when roads are blocked or shelters close.\n"
+                "5. Social Vulnerability — Prioritizes elderly, disabled, and children.\n\n"
+                "Data sources: OpenStreetMap, NDMA/Bhuvan, IMD rainfall, Census 2011.")
+
+    # Help / what should I do
+    if any(w in query for w in ("help", "what should", "do now", "action")):
+        return ("Emergency Actions for Chamoli District:\n\n"
+                "1. If you are in a flood zone: Move to higher ground immediately\n"
+                "2. If landslide risk: Stay away from steep slopes and river banks\n"
+                "3. Follow marked evacuation routes to the nearest shelter\n"
+                "4. Help elderly and children first\n"
+                "5. Keep emergency supplies ready (water, food, medicine, documents)\n"
+                "6. Call the IVR helpline: 1800-XXX-XXXX\n"
+                "7. Report hazards through the crowd reporting feature")
+
+    # Default: conversational response
+    return ("I can help with disaster management for Chamoli district.\n"
+            "Try asking about:\n"
+            "- Flood zones and weather risks\n"
+            "- Evacuation plans and shelter capacity\n"
+            "- Which villages are at risk\n"
+            "- What to do in an emergency\n"
+            "- How the system works")
 
 
 # ======================== PDF REPORT ========================

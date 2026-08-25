@@ -17,59 +17,67 @@ export default function AIAssistant({ data }) {
     const alerts = {};
     Object.values(conf).forEach(c => { alerts[c.alert_level] = (alerts[c.alert_level]||0)+1; });
 
-    const shelterNames = [];
+    const shelterInfo = [];
     if (result?.assignments) {
-      result.assignments.slice(0, 20).forEach(a => {
-        shelterNames.push(`${a.shelter_id}: ${a.people_assigned} people assigned, ${a.distance_km}km`);
+      result.assignments.slice(0, 15).forEach(a => {
+        shelterInfo.push(`${a.habitation_id} → ${a.shelter_id}: ${a.people_assigned} people, ${a.distance_km}km`);
       });
     }
 
-    return `You are LocaTS AI Assistant — a disaster management assistant for Chamoli district, Uttarakhand, India.
+    // Build zone details
+    const zoneDetails = zones.map(z => `${z.type} zone: severity ${(z.severity*100).toFixed(0)}%`).join('; ');
 
-STRICT RULES — YOU MUST FOLLOW THESE:
-1. ONLY answer questions about: LocaTS system, disaster management, Chamoli district hazards, evacuation planning, shelter capacity, relocation plans, hazard zones, rainfall data, family reunification, IVR helpline, and this dashboard's data.
-2. NEVER answer questions about: politics, prime minister, celebrities, sports, general knowledge, coding, math, history, geography outside Chamoli, or any topic unrelated to disaster management.
-3. If asked something outside your scope, respond: "I can only assist with disaster management information for Chamoli district. Please ask about hazard zones, evacuation plans, shelter capacity, or system features."
-4. Use ONLY the data provided below. Do not make up numbers or facts.
-5. Be concise. Focus on actionable insights for disaster response officials.
+    return `You are LocaTS AI — a helpful disaster management assistant for Chamoli district, Uttarakhand, India.
 
-DISTRICT: Chamoli, Uttarakhand (Seismic Zone IV, elevation 1300-3300m)
-POPULATION: ${cap.total_population?.toLocaleString()||'N/A'} (Census 2011 + buffer)
-SHELTERS: ${cap.active_shelters||0} active with ${(cap.total_beds_available||0).toLocaleString()} total beds
-HAZARD ZONES: ${zones.length} active (${Object.entries(zones.reduce((a,z)=>{a[z.type]=(a[z.type]||0)+1;return a},{})).map(([k,v])=>`${k}:${v}`).join(', ')||'none'})
-ALERTS: ${Object.entries(alerts).map(([k,v])=>`${k}:${v}`).join(', ')||'none computed'}
-DATA SOURCES: OpenStreetMap (ODbL), NDMA/Bhuvan hazard maps, IMD rainfall, Census 2011
+You are friendly, conversational, and helpful. You CAN discuss:
+- Anything related to this disaster management system and Chamoli district
+- Hazard zones, flood risks, landslide risks, seismic activity
+- Evacuation plans, shelter capacity, relocation assignments
+- Rainfall data, weather conditions
+- System features and how they work
+- General disaster preparedness advice for mountain regions
 
-${result?`LATEST OPTIMIZATION RESULTS:
-- Total relocated: ${result.total_people_relocated?.toLocaleString()||0}
-- People unmet (need more shelter): ${result.total_people_unmet?.toLocaleString()||0}
-- Plan feasible: ${result.is_feasible ? 'Yes — all people assigned to shelters' : 'No — shelter capacity insufficient for all evacuees'}
-- Solver method: ${result.used_fallback_heuristic ? 'Greedy heuristic (fast)' : 'OR-Tools optimal solver'}
-- Solver time: ${result.solver_time_seconds||0}s
-- Top assignments: ${shelterNames.join(' | ')}
+Only refuse if the question is completely unrelated to disaster management or this system (e.g., "write me a poem", "what's the stock price").
 
-WHAT INFEASIBLE MEANS: When the plan shows "infeasible", it means more people need evacuation than current shelter beds can hold. The system still assigns as many people as possible — the "unmet" count tells officials how many additional shelter places are needed.` : 'No optimization has been run yet. Go to Dashboard and click Run Optimization.'}
+DISTRICT DATA:
+- Chamoli, Uttarakhand — Seismic Zone IV, elevation 1300-3300m
+- Population: ${cap.total_population?.toLocaleString()||'N/A'}
+- Active Shelters: ${cap.active_shelters||0} with ${(cap.total_beds_available||0).toLocaleString()} beds
+- Hazard Zones: ${zones.length} active (${zoneDetails || 'none currently mapped'})
+- Alert Distribution: ${Object.entries(alerts).map(([k,v])=>`${k}: ${v}`).join(', ')||'none computed yet'}
 
-SYSTEM CAPABILITIES:
-- Hazard Fusion: Combines static zones + live sensors + crowd reports using Bayesian scoring
-- OR-Tools Optimization: Solves capacitated transportation problem (who goes where)
-- Rolling-horizon Re-planning: Updates plan when roads/shelters change
+${result?`LATEST EVACUATION PLAN:
+- Status: ${result.is_feasible ? 'FEASIBLE — all people can be sheltered' : 'INFEASIBLE — more people than beds available'}
+- People Relocated: ${result.total_people_relocated?.toLocaleString()||0}
+- People Unmet: ${result.total_people_unmet?.toLocaleString()||0} (need additional shelter capacity)
+- Method: ${result.used_fallback_heuristic ? 'Greedy heuristic' : 'OR-Tools optimal solver'}
+- Assignments (${result.assignments?.length || 0} total):
+${shelterInfo.join('\n') || 'No assignments yet'}
+${result.total_people_unmet > 0 ? `\nNote: ${result.total_people_unmet.toLocaleString()} people couldn't be assigned. Officials should activate nearby district shelters or deploy temporary tent cities.` : ''}` : 'No optimization run yet. Go to Dashboard → Run Optimization to generate an evacuation plan.'}
+
+SYSTEM FEATURES:
+- Hazard Fusion: Combines static maps + live sensors + crowd reports (Bayesian scoring)
+- OR-Tools Optimizer: Solves who goes to which shelter optimally
+- Rolling-horizon: Re-plans when roads/shelters change
 - Social Vulnerability: Prioritizes elderly, disabled, children
-- IVR Phone Helpline: Hindi/English voice menu for basic phone users
-- Family Reunification: Track separated family members across shelters
-- Historical Backtesting: Tests against 2021 Chamoli flash flood`;
+- IVR Helpline: Hindi/English phone menu (1800-XXX-XXXX)
+- Family Search: Track separated family across shelters
+- What-If Simulator: Test rainfall increase, road blocks, shelter closures
+- Historical Backtesting: Tests against 2021 Chamoli flash flood
+
+Be conversational and helpful. If someone asks about flood zones, tell them exactly which zones exist, their severity, and what actions to take. If they ask "where", describe the locations relative to known landmarks in Chamoli (Gopeshwar, Joshimath, Badrinath, etc).`;
   }, [data]);
 
-  const GUARDRAIL_KEYWORDS = ['prime minister', 'president', 'modi', 'rahul gandhi', 'bollywood', 'cricket', 'stock market', 'bitcoin', 'recipe', 'movie', 'song', 'politics', 'election', 'who is the', 'what is the capital of', 'write a code', 'python', 'javascript'];
+  // Only block truly off-topic queries
+  const BLOCKED_PATTERNS = ['write me a poem', 'tell me a joke', 'what is the stock price', 'bitcoin price', 'recipe for'];
 
   const send = useCallback(async (text) => {
     if (!text.trim()) return;
 
-    // Client-side guardrail check
-    const lowerText = text.toLowerCase();
-    const blocked = GUARDRAIL_KEYWORDS.some(kw => lowerText.includes(kw));
+    const lowerText = text.toLowerCase().trim();
+    const blocked = BLOCKED_PATTERNS.some(kw => lowerText.includes(kw));
     if (blocked) {
-      setMessages(p => [...p, { role: 'user', text }, { role: 'assistant', text: 'I can only assist with disaster management information for Chamoli district. Please ask about hazard zones, evacuation plans, shelter capacity, or system features.' }]);
+      setMessages(p => [...p, { role: 'user', text }, { role: 'assistant', text: "I'm focused on disaster management for Chamoli district. Ask me about hazard zones, evacuation plans, shelter capacity, or system features!" }]);
       return;
     }
 
@@ -113,13 +121,11 @@ SYSTEM CAPABILITIES:
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `locats_relocation_order.pdf`;
-      a.click();
+      const a = document.createElement('a'); a.href = url;
+      a.download = `locats_relocation_order.pdf`; a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
-      alert('Error downloading report: ' + e.message);
+      alert('Error: ' + e.message);
     }
   }, []);
 
@@ -132,7 +138,7 @@ SYSTEM CAPABILITIES:
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 15, fontWeight: 700 }}>Disaster Management Assistant</div>
-            <div style={{ fontSize: 11, color: '#94A3B8' }}>Answers only from LocaTS data and disaster knowledge</div>
+            <div style={{ fontSize: 11, color: '#94A3B8' }}>Powered by LocaTS data + Groq AI</div>
           </div>
           <button className="btn btn-secondary btn-sm" onClick={downloadReport} style={{ fontSize: 11, padding: '4px 10px' }}>
             Download Report
@@ -143,9 +149,9 @@ SYSTEM CAPABILITIES:
         {messages.length === 0 && (
           <div style={{ textAlign: 'center', padding: '50px 20px', color: '#94A3B8' }}>
             <div style={{ fontSize: 15, fontWeight: 600, color: '#475569', marginBottom: 8 }}>Ask about Chamoli district</div>
-            <div style={{ fontSize: 13, marginBottom: 24, maxWidth: 380, margin: '0 auto 24px' }}>I can explain evacuation plans, hazard scores, shelter capacity, and system features.</div>
+            <div style={{ fontSize: 13, marginBottom: 24, maxWidth: 380, margin: '0 auto 24px' }}>I can help with evacuation plans, hazard zones, shelter capacity, and disaster preparedness.</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 360, margin: '0 auto' }}>
-              {['What is the current evacuation status?','Why is the plan infeasible?','How does hazard fusion work?','Which villages are at highest risk?'].map((s, i) => (
+              {['Is there a flood risk today?','Which villages need evacuation?','How many shelters are available?','What should I do in an emergency?'].map((s, i) => (
                 <button key={i} className="btn btn-secondary btn-sm" style={{ justifyContent: 'flex-start' }} onClick={() => send(s)}>{s}</button>
               ))}
             </div>
@@ -161,7 +167,7 @@ SYSTEM CAPABILITIES:
         <div ref={endRef} />
       </div>
       <div className="chat-input-area">
-        <input className="chat-input" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input); } }} placeholder="Ask about evacuation, hazards, shelters..." disabled={loading} />
+        <input className="chat-input" value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input); } }} placeholder="Ask about flood zones, evacuation, shelters..." disabled={loading} />
         <button className="btn btn-primary btn-sm" onClick={() => send(input)} disabled={loading || !input.trim()}>Send</button>
       </div>
     </div>

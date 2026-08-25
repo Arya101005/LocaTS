@@ -445,7 +445,10 @@ function AppContent() {
     try { await fetch(`${API}/optimize/re-solve`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ time_budget_seconds: 30.0 }) }); await fetchDashboard(); } catch (err) { setError(err.message); } finally { setOptimizing(false); }
   }, [fetchDashboard]);
 
-  useEffect(() => { if (user || isAdmin || isCitizen || isAudit) fetchDashboard(); }, [user, isAdmin, isCitizen, isAudit, fetchDashboard]);
+  // Only fetch dashboard data when on admin page and logged in
+  useEffect(() => {
+    if (user && isAdmin && !loading) fetchDashboard();
+  }, [user, isAdmin, loading, fetchDashboard]);
 
   // Listen for tab-switch events from child components
   useEffect(() => {
