@@ -18,98 +18,111 @@ const SatelliteMonitor = lazy(() => import('./components/SatelliteMonitor'));
 const API = '/api';
 
 const NAV_ITEMS = [
-  { id: 'dashboard', label: 'Command Overview', icon: 'M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z', roles: ['admin', 'operator', 'viewer'] },
+  { id: 'dashboard', label: 'Command Overview', icon: 'M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z', roles: ['admin', 'operator', 'viewer', 'citizen'] },
   { id: 'analysis', label: 'Optimization Console', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z', roles: ['admin', 'operator'] },
   { id: 'shelters', label: 'Shelter Management', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4', roles: ['admin', 'operator'] },
   { id: 'reports', label: 'Crowd Reports', icon: 'M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z', roles: ['admin', 'operator'] },
   { id: 'ivr', label: 'Phone / IVR', icon: 'M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z', roles: ['admin', 'operator'] },
   { id: 'whatsapp', label: 'WhatsApp Bot', icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z', roles: ['admin', 'operator'] },
   { id: 'satellite', label: 'Satellite Monitor', icon: 'M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z', roles: ['admin', 'operator'] },
-  { id: 'family', label: 'Family Reunification', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z', roles: ['admin', 'operator', 'viewer'] },
-  { id: 'ai', label: 'AI Assistant', icon: 'M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z', roles: ['admin', 'operator', 'viewer'] },
+  { id: 'family', label: 'Family Reunification', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z', roles: ['admin', 'operator', 'viewer', 'citizen'] },
+  { id: 'ai', label: 'AI Assistant', icon: 'M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z', roles: ['admin', 'operator', 'viewer', 'citizen'] },
   { id: 'audit', label: 'Audit Log', icon: 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z', roles: ['admin'] },
   { id: 'users', label: 'User Management', icon: 'M12 4.354a4 4 0 110 7.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z', roles: ['admin'] },
   { id: 'multidistrict', label: 'Multi-District', icon: 'M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z', roles: ['admin', 'operator'], badge: { text: '3', bg: '#7C3AED', color: '#fff' } },
-  { id: 'features', label: 'Feature Showcase', icon: 'M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z', roles: ['admin', 'operator', 'viewer'], badge: { text: '32', bg: '#16A34A', color: '#fff' } },
+  { id: 'features', label: 'Feature Showcase', icon: 'M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z', roles: ['admin', 'operator', 'viewer', 'citizen'], badge: { text: '32', bg: '#16A34A', color: '#fff' } },
 ];
 
 function LandingPage() {
-  const [visible, setVisible] = useState(false);
-  useEffect(() => { setTimeout(() => setVisible(true), 100); }, []);
+  const [mode, setMode] = useState('login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState('');
+  const { login, signup } = useAuth();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(''); setSuccess(''); setLoading(true);
+    try {
+      if (mode === 'login') {
+        await login(email, password);
+      } else {
+        const res = await signup(email, password, name);
+        setSuccess(res.message || 'Account created! You can now sign in.');
+        setMode('login');
+      }
+    } catch (err) { setError(err.message); }
+    finally { setLoading(false); }
+  };
 
   return (
-    <div className="landing-hero" style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #F0F9F4 0%, #ECFDF5 50%, #F0FDF4 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Inter, sans-serif', position: 'relative', overflow: 'hidden' }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #F0F9F4 0%, #ECFDF5 50%, #F0FDF4 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Inter, sans-serif', position: 'relative', overflow: 'hidden' }}>
       {/* Floating background orbs */}
       <div className="animate-float" style={{ position: 'absolute', top: '10%', left: '8%', width: 180, height: 180, borderRadius: '50%', background: 'radial-gradient(circle, rgba(22,163,74,0.08) 0%, transparent 70%)', pointerEvents: 'none' }} />
       <div className="animate-float" style={{ position: 'absolute', bottom: '15%', right: '10%', width: 240, height: 240, borderRadius: '50%', background: 'radial-gradient(circle, rgba(13,148,136,0.06) 0%, transparent 70%)', pointerEvents: 'none', animationDelay: '1.5s' }} />
-      <div className="animate-float" style={{ position: 'absolute', top: '60%', left: '70%', width: 120, height: 120, borderRadius: '50%', background: 'radial-gradient(circle, rgba(139,92,246,0.05) 0%, transparent 70%)', pointerEvents: 'none', animationDelay: '0.8s' }} />
 
-      <div style={{ textAlign: 'center', maxWidth: 580, padding: 40, position: 'relative', zIndex: 1 }}>
-        {/* Animated logo */}
-        <div className={`animate-fade-in-scale ${visible ? '' : ''}`} style={{ opacity: visible ? 1 : 0, transition: 'opacity 0.6s ease' }}>
-          <div className="animate-glow" style={{ width: 80, height: 80, borderRadius: 20, background: 'linear-gradient(135deg, #16A34A, #0D9488)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', fontWeight: 800, fontSize: 34, color: '#fff', boxShadow: '0 8px 32px rgba(22,163,74,0.3)', position: 'relative' }}>
-            L
-            <div style={{ position: 'absolute', inset: -3, borderRadius: 23, border: '2px solid rgba(22,163,74,0.15)', animation: 'pulse 2s infinite' }} />
+      <div style={{ textAlign: 'center', maxWidth: 440, width: '100%', padding: '0 20px', position: 'relative', zIndex: 1 }}>
+        {/* Logo */}
+        <div style={{ marginBottom: 28 }}>
+          <div className="animate-glow" style={{ width: 64, height: 64, borderRadius: 16, background: 'linear-gradient(135deg, #16A34A, #0D9488)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontWeight: 800, fontSize: 28, color: '#fff', boxShadow: '0 8px 32px rgba(22,163,74,0.3)' }}>L</div>
+          <h1 style={{ fontSize: 28, fontWeight: 800, color: '#111827', marginBottom: 4, letterSpacing: -1 }}>
+            <span className="gradient-text">LocaTS</span>
+          </h1>
+          <p style={{ fontSize: 13, color: '#94A3B8', fontWeight: 500 }}>Intelligent Disaster Relocation Planning</p>
+        </div>
+
+        {/* Auth Card */}
+        <div className="animate-fade-in-up" style={{ background: '#fff', borderRadius: 16, border: '1px solid #E2E8F0', padding: 32, boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
+          {/* Tabs */}
+          <div style={{ display: 'flex', gap: 4, background: '#F6FAFD', borderRadius: 10, padding: 4, marginBottom: 24, border: '1px solid #E2E8F0' }}>
+            <button onClick={() => { setMode('login'); setError(''); setSuccess(''); }}
+              style={{ flex: 1, padding: '9px 0', border: 'none', borderRadius: 8, fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 600, cursor: 'pointer', background: mode === 'login' ? '#fff' : 'transparent', color: mode === 'login' ? '#16A34A' : '#94A3B8', boxShadow: mode === 'login' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none', transition: 'all 0.15s' }}>Sign In</button>
+            <button onClick={() => { setMode('signup'); setError(''); setSuccess(''); }}
+              style={{ flex: 1, padding: '9px 0', border: 'none', borderRadius: 8, fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 600, cursor: 'pointer', background: mode === 'signup' ? '#fff' : 'transparent', color: mode === 'signup' ? '#16A34A' : '#94A3B8', boxShadow: mode === 'signup' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none', transition: 'all 0.15s' }}>Create Account</button>
           </div>
+
+          {error && <div style={{ padding: '10px 14px', background: '#FEF2F2', border: '1px solid rgba(239,68,68,0.15)', borderRadius: 8, fontSize: 13, color: '#EF4444', marginBottom: 16 }}>{error}</div>}
+          {success && <div style={{ padding: '10px 14px', background: '#F0FDF4', border: '1px solid rgba(34,197,94,0.15)', borderRadius: 8, fontSize: 13, color: '#16A34A', marginBottom: 16 }}>{success}</div>}
+
+          <form onSubmit={handleSubmit}>
+            {mode === 'signup' && (
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 6 }}>Full Name</label>
+                <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Enter your full name" required
+                  style={{ width: '100%', padding: '10px 14px', background: '#F6FAFD', border: '1px solid #E2E8F0', borderRadius: 10, color: '#172B4D', fontFamily: 'Inter, sans-serif', fontSize: 13 }} />
+              </div>
+            )}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 6 }}>Email</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required
+                style={{ width: '100%', padding: '10px 14px', background: '#F6FAFD', border: '1px solid #E2E8F0', borderRadius: 10, color: '#172B4D', fontFamily: 'Inter, sans-serif', fontSize: 13 }} />
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 6 }}>Password</label>
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Minimum 6 characters" required minLength={6}
+                style={{ width: '100%', padding: '10px 14px', background: '#F6FAFD', border: '1px solid #E2E8F0', borderRadius: 10, color: '#172B4D', fontFamily: 'Inter, sans-serif', fontSize: 13 }} />
+            </div>
+            <button type="submit" disabled={loading} style={{ width: '100%', padding: '11px 0', background: 'linear-gradient(135deg, #16A34A, #0D9488)', color: '#fff', border: 'none', borderRadius: 10, fontFamily: 'Inter, sans-serif', fontSize: 14, fontWeight: 600, cursor: loading ? 'wait' : 'pointer', boxShadow: '0 2px 8px rgba(22,163,74,0.3)', opacity: loading ? 0.7 : 1, transition: 'all 0.15s' }}>
+              {loading ? 'Please wait...' : mode === 'login' ? 'Sign In' : 'Create Account'}
+            </button>
+          </form>
+
+          {mode === 'login' && (
+            <div style={{ marginTop: 16, textAlign: 'center' }}>
+              <a href="/citizen" style={{ fontSize: 12, color: '#16A34A', textDecoration: 'none', fontWeight: 500 }}>Citizen Portal (No login needed) →</a>
+            </div>
+          )}
+          {mode === 'signup' && (
+            <div style={{ marginTop: 16, textAlign: 'center', fontSize: 11, color: '#94A3B8' }}>
+              New accounts start as citizens. Admin can upgrade your role.
+            </div>
+          )}
         </div>
 
-        <h1 className={`animate-fade-in-up ${visible ? '' : ''}`} style={{ opacity: visible ? 1 : 0, transition: 'opacity 0.6s ease 0.15s', fontSize: 40, fontWeight: 800, color: '#111827', marginBottom: 8, letterSpacing: -1.5 }}>
-          <span className="gradient-text">LocaTS</span>
-        </h1>
-        <p className={`animate-fade-in-up ${visible ? '' : ''}`} style={{ opacity: visible ? 1 : 0, transition: 'opacity 0.6s ease 0.25s', fontSize: 17, color: '#6B7280', marginBottom: 40, lineHeight: 1.6 }}>
-          Intelligent Disaster Relocation Planning<br/>
-          <span style={{ fontWeight: 600, color: '#374151' }}>Chamoli District, Uttarakhand</span>
-        </p>
-
-        {/* Stats row */}
-        <div className={`stagger-children animate-fade-in-up ${visible ? '' : ''}`} style={{ opacity: visible ? 1 : 0, transition: 'opacity 0.6s ease 0.3s', display: 'flex', justifyContent: 'center', gap: 32, marginBottom: 40 }}>
-          {[{ n: '149K', l: 'People Evacuated' }, { n: '26', l: 'Shelters' }, { n: '24', l: 'Villages' }].map(s => (
-            <div key={s.l} style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 28, fontWeight: 800, color: '#16A34A', letterSpacing: -1 }}>{s.n}</div>
-              <div style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 500, marginTop: 2 }}>{s.l}</div>
-            </div>
-          ))}
-        </div>
-
-        <div className="stagger-children" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <a href="/citizen" className="card" style={{ display: 'block', padding: '28px 32px', textDecoration: 'none', border: '2px solid #E5E7EB', transition: 'all 0.25s ease', animation: 'fadeInUp 0.5s ease-out forwards', animationDelay: '0.35s', opacity: 0 }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = '#22C55E'; e.currentTarget.style.boxShadow = '0 8px 30px rgba(34,197,94,0.15)'; e.currentTarget.style.transform = 'translateY(-3px)'; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.boxShadow = ''; e.currentTarget.style.transform = ''; }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: '#F0FDF4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
-              </div>
-              <div style={{ textAlign: 'left' }}>
-                <div style={{ fontSize: 18, fontWeight: 700, color: '#16A34A', marginBottom: 2 }}>Public / Citizen Portal</div>
-                <div style={{ fontSize: 13, color: '#6B7280' }}>Check your village status, find shelters, report hazards. No login needed.</div>
-              </div>
-            </div>
-          </a>
-
-          <a href="/admin" className="card" style={{ display: 'block', padding: '28px 32px', textDecoration: 'none', border: '2px solid #E5E7EB', transition: 'all 0.25s ease', animation: 'fadeInUp 0.5s ease-out forwards', animationDelay: '0.45s', opacity: 0 }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = '#2563EB'; e.currentTarget.style.boxShadow = '0 8px 30px rgba(37,99,235,0.12)'; e.currentTarget.style.transform = 'translateY(-3px)'; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.boxShadow = ''; e.currentTarget.style.transform = ''; }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
-              </div>
-              <div style={{ textAlign: 'left' }}>
-                <div style={{ fontSize: 18, fontWeight: 700, color: '#2563EB', marginBottom: 2 }}>Admin / Operator Login</div>
-                <div style={{ fontSize: 13, color: '#6B7280' }}>Full dashboard with optimization, shelter management, and crowd reports.</div>
-              </div>
-            </div>
-          </a>
-        </div>
-
-        <div className={`animate-fade-in-up ${visible ? '' : ''}`} style={{ opacity: visible ? 1 : 0, transition: 'opacity 0.6s ease 0.6s', marginTop: 36, display: 'flex', justifyContent: 'center', gap: 20 }}>
-          {[{ label: 'Hazard Fusion', icon: '🛡' }, { label: 'OR-Tools', icon: '⚡' }, { label: 'Real-time', icon: '📡' }].map(f => (
-            <div key={f.label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#6B7280', padding: '6px 14px', background: '#fff', borderRadius: 20, border: '1px solid #E5E7EB' }}>
-              <span>{f.icon}</span> {f.label}
-            </div>
-          ))}
-        </div>
-
-        <div className={`animate-fade-in-up ${visible ? '' : ''}`} style={{ opacity: visible ? 1 : 0, transition: 'opacity 0.6s ease 0.7s', marginTop: 28, fontSize: 12, color: '#9CA3AF' }}>
+        <div style={{ marginTop: 20, fontSize: 11, color: '#9CA3AF' }}>
           SIH26191 — Ministry of Home Affairs, Disaster Management
         </div>
       </div>
@@ -295,6 +308,7 @@ function RelocationAnalysis({ data }) {
 function UserManagement({ token }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState(null);
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -308,29 +322,84 @@ function UserManagement({ token }) {
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
   const updateRole = async (userId, newRole) => {
-    try { await fetch(`${API}/auth/users/${userId}/role?role=${newRole}`, { method: 'PUT', headers: { 'Authorization': `Bearer ${token}` } }); fetchUsers(); } catch (e) {}
+    setUpdatingId(userId);
+    try {
+      await fetch(`${API}/auth/users/${userId}/role?role=${newRole}`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      fetchUsers();
+    } catch (e) {}
+    finally { setUpdatingId(null); }
   };
 
+  const roleColors = { admin: '#2563EB', operator: '#16A34A', citizen: '#F59E0B', viewer: '#6B7280' };
+  const roleBgs = { admin: '#EFF6FF', operator: '#F0FDF4', citizen: '#FFFBEB', viewer: '#F9FAFB' };
+
   return (
-    <div style={{ padding: 28, maxWidth: 800, overflow: 'auto', height: '100%' }}>
-      <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>User Management</h2>
-      <p style={{ fontSize: 13, color: '#94A3B8', marginBottom: 24 }}>Manage operator accounts and roles.</p>
-      {loading ? <p style={{ color: '#94A3B8' }}>Loading...</p> : (
+    <div style={{ padding: 28, maxWidth: 900, overflow: 'auto', height: '100%' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <div>
+          <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>User Management</h2>
+          <p style={{ fontSize: 13, color: '#94A3B8' }}>Approve registrations and assign roles to citizens.</p>
+        </div>
+        <button className="btn btn-secondary btn-sm" onClick={fetchUsers} disabled={loading}>
+          {loading ? 'Loading...' : 'Refresh'}
+        </button>
+      </div>
+
+      {/* Role summary */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 20, marginTop: 16 }}>
+        {['admin', 'operator', 'citizen', 'viewer'].map(r => (
+          <div key={r} style={{ flex: 1, padding: '12px 14px', background: roleBgs[r], borderRadius: 10, border: `1px solid ${roleColors[r]}20`, textAlign: 'center' }}>
+            <div style={{ fontSize: 22, fontWeight: 800, color: roleColors[r] }}>{users.filter(u => u.role === r).length}</div>
+            <div style={{ fontSize: 10, fontWeight: 600, color: roleColors[r], textTransform: 'uppercase', letterSpacing: 0.5 }}>{r}s</div>
+          </div>
+        ))}
+      </div>
+
+      {loading ? (
+        <div style={{ padding: 40, textAlign: 'center', color: '#94A3B8' }}>Loading users...</div>
+      ) : (
         <div className="card" style={{ overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead><tr style={{ borderBottom: '1px solid #E2E8F0', background: '#F6FAFD' }}>
-              {['Email', 'Name', 'Role', 'Actions'].map(h => <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#475569', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1 }}>{h}</th>)}
+              {['Email', 'Name', 'Current Role', 'Assign Role'].map(h => (
+                <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#475569', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1 }}>{h}</th>
+              ))}
             </tr></thead>
             <tbody>
               {users.map(u => (
-                <tr key={u.id} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                  <td style={{ padding: '12px 16px', fontWeight: 500 }}>{u.email}</td>
-                  <td style={{ padding: '12px 16px', color: '#475569' }}>{u.full_name || '-'}</td>
-                  <td style={{ padding: '12px 16px' }}><span className={`badge badge-${u.role === 'admin' ? 'info' : u.role === 'operator' ? 'safe' : 'warn'}`}>{u.role}</span></td>
-                  <td style={{ padding: '12px 16px' }}><select className="form-select" value={u.role} onChange={e => updateRole(u.id, e.target.value)} style={{ padding: '5px 8px', fontSize: 12 }}><option value="admin">Admin</option><option value="operator">Operator</option><option value="viewer">Viewer</option></select></td>
+                <tr key={u.id} style={{ borderBottom: '1px solid #F1F5F9', background: u.role === 'citizen' ? '#FFFBEB08' : 'transparent' }}>
+                  <td style={{ padding: '12px 16px', fontWeight: 500, color: '#1F2937' }}>{u.email}</td>
+                  <td style={{ padding: '12px 16px', color: '#475569' }}>{u.full_name || <span style={{ color: '#D1D5DB' }}>—</span>}</td>
+                  <td style={{ padding: '12px 16px' }}>
+                    <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: roleBgs[u.role] || '#F9FAFB', color: roleColors[u.role] || '#6B7280', border: `1px solid ${roleColors[u.role] || '#6B7280'}20` }}>
+                      {u.role}
+                    </span>
+                  </td>
+                  <td style={{ padding: '12px 16px' }}>
+                    <select
+                      className="form-select"
+                      value={u.role}
+                      onChange={e => updateRole(u.id, e.target.value)}
+                      disabled={updatingId === u.id || u.email === 'pranavarya2005@gmail.com'}
+                      style={{ padding: '6px 10px', fontSize: 12, borderRadius: 8, border: '1px solid #E2E8F0' }}
+                    >
+                      <option value="citizen">👤 Citizen</option>
+                      <option value="operator">🔧 Operator</option>
+                      <option value="admin">👑 Admin</option>
+                      <option value="viewer">👁 Viewer</option>
+                    </select>
+                  </td>
                 </tr>
               ))}
-              {users.length === 0 && <tr><td colSpan={4} style={{ padding: 20, textAlign: 'center', color: '#94A3B8' }}>No users found.</td></tr>}
+              {users.length === 0 && (
+                <tr><td colSpan={4} style={{ padding: 40, textAlign: 'center', color: '#94A3B8' }}>
+                  <div style={{ fontSize: 14, marginBottom: 4 }}>No registered users yet</div>
+                  <div style={{ fontSize: 12 }}>Users will appear here after they create an account.</div>
+                </td></tr>
+              )}
             </tbody>
           </table>
         </div>

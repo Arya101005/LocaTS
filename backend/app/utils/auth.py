@@ -149,28 +149,42 @@ def create_auth_routes(app):
 
     @app.post("/api/auth/signup")
     async def auth_signup(signup: AuthSignup):
-        """Sign up a new operator account. Auto-confirms if possible."""
+        """Sign up a new user account. All new users default to 'citizen' role."""
         client = _get_supabase_client()
         if not client:
             return {"error": "Supabase not configured. Set SUPABASE_URL and SUPABASE_KEY in .env."}
+
+        # Determine default role: pranavarya2005@gmail.com is always admin
+        default_role = "admin" if signup.email.lower() == "pranavarya2005@gmail.com" else "citizen"
 
         try:
             result = client.auth.sign_up({
                 "email": signup.email,
                 "password": signup.password,
-                "options": {"data": {"full_name": signup.name, "role": "operator"}},
+                "options": {"data": {"full_name": signup.name, "role": default_role}},
             })
+            # Upsert user profile with role
+            try:
+                client.table("user_profiles").upsert({
+                    "id": result.user.id if result.user else "",
+                    "email": signup.email,
+                    "role": default_role,
+                    "full_name": signup.name,
+                    "is_active": True,
+                }).execute()
+            except Exception:
+                pass  # Table may not exist
             if result.session:
-                # Auto-confirmed — return tokens immediately
                 return {
                     "status": "signup_complete",
                     "access_token": result.session.access_token,
                     "refresh_token": result.session.refresh_token,
                     "expires_at": result.session.expires_at,
                     "user": {"email": result.user.email, "id": result.user.id},
+                    "role": default_role,
                 }
             if result.user:
-                return {"status": "signup_pending", "email": signup.email, "message": "Check email for confirmation link, or ask admin to confirm your account."}
+                return {"status": "signup_pending", "email": signup.email, "role": default_role, "message": "Account created! You can now sign in. Your role: " + default_role}
             return {"error": "Signup failed"}
         except Exception as e:
             return {"error": str(e)}
@@ -203,6 +217,16 @@ def create_auth_routes(app):
     @app.get("/api/auth/profile")
     async def auth_profile(user=Depends(require_auth)):
         """Get full user profile including role from user_profiles table."""
+        email = user.get("email", "")
+        # pranavarya2005@gmail.com is always admin
+        if email.lower() == "pranavarya2005@gmail.com":
+            return {
+                "id": user.get("sub"),
+                "email": email,
+                "role": "admin",
+                "full_name": "Arya",
+                "is_active": True,
+            }
         client = _get_supabase_client()
         if client:
             try:
@@ -211,13 +235,11 @@ def create_auth_routes(app):
                     return result.data[0]
             except Exception as e:
                 if logger: logger.warning(f"Profile fetch failed (table may not exist): {e}")
-        # Fallback: check email for admin pattern, else operator
-        email = user.get("email", "")
-        role = "admin" if "admin" in email.lower() else "operator"
+        # Fallback: default to citizen role
         return {
             "id": user.get("sub"),
             "email": email,
-            "role": role,
+            "role": "citizen",
             "full_name": "",
             "is_active": True,
         }
@@ -245,7 +267,7 @@ def create_auth_routes(app):
         email = user.get("email", "")
         if user.get("role") != "admin" and "admin" not in email.lower():
             raise HTTPException(status_code=403, detail="Admin access required")
-        if role not in ("admin", "operator", "viewer"):
+        if role not in ("admin", "operator", "viewer", "citizen"):
             raise HTTPException(status_code=400, detail="Invalid role")
         client = _get_supabase_client()
         if client:
