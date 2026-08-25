@@ -2550,77 +2550,21 @@ async def whatsapp_action(payload: dict):
 async def satellite_change_detection(district: str = "Chamoli"):
     """
     Detect hazard zone changes from Sentinel-2 satellite imagery.
-    Uses Copernicus Data Space API (free) for before/after imagery.
-    Computes NDWI (water) and NDSI (snow/landslide) difference maps.
+    Uses Sentinel Hub API with NDWI (water) and NDSI (snow/landslide) analysis.
+    Falls back to Copernicus Data Space search or hazard zone proxy.
     """
-    import httpx
-    import math
-
-    # Chamoli coordinates
-    lat_center, lon_center = 30.40, 79.45
-    bbox = f"{lon_center-0.15},{lat_center-0.1},{lon_center+0.15},{lat_center+0.1}"
-
-    changes = []
-    is_live = False
-
-    # Try Copernicus Data Space API (free, no key for search)
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            # Search for recent Sentinel-2 scenes
-            search_url = "https://catalogue.dataspace.copernicus.eu/odata/v1/Products"
-            params = {
-                "$filter": f"Collection/Name eq 'SENTINEL-2' and OData.CSC.Intersects(area=geography'SRID=4326;POINT({lon_center} {lat_center})') and ContentDate/Start gt 2026-01-01T00:00:00.000Z",
-                "$top": 5,
-                "$orderby": "ContentDate/Start desc",
-                "$expand": "Attributes",
-            }
-            resp = await client.get(search_url, params=params)
-            if resp.status_code == 200:
-                data = resp.json()
-                products = data.get("value", [])
-                is_live = True
-
-                for p in products[:3]:
-                    name = p.get("Name", "")
-                    date = p.get("ContentDate", {}).get("Start", "")[:10]
-                    cloud = 0
-                    for attr in p.get("Attributes", []):
-                        if attr.get("Name") == "cloudCover":
-                            cloud = float(attr.get("Value", 0))
-
-                    if cloud < 30:  # Filter cloudy scenes
-                        changes.append({
-                            "product": name,
-                            "date": date,
-                            "cloud_cover": cloud,
-                            "bbox": bbox,
-                            "type": "sentinel-2-scene",
-                            "analysis": "Available for NDWI/NDSI change detection",
-                        })
-    except Exception:
-        pass
-
-    # If no live data, generate analysis from current hazard zones
-    if not changes and _static_zones:
-        for z in _static_zones:
-            changes.append({
-                "zone_id": z.id,
-                "type": z.hazard_type.value,
-                "severity": z.severity,
-                "radius_km": z.radius_km,
-                "center_lat": z.center.get("lat", 0) if isinstance(z.center, dict) else z.center.lat,
-                "center_lon": z.center.get("lon", 0) if isinstance(z.center, dict) else z.center.lon,
-                "analysis": f"Active {z.hazard_type.value} zone at {z.severity:.0%} severity",
-                "source": "NDMA hazard zones (static data)",
-            })
-
+    from backend.app.utils.satellite import satellite_detector
+    
+    changes = satellite_detector.detect_changes(district=district)
+    is_live = not satellite_detector.use_demo
+    
     return {
         "district": district,
         "is_live_satellite": is_live,
-        "source": "Copernicus Data Space (Sentinel-2)" if is_live else "NDMA hazard zone analysis",
+        "source": "Sentinel-2 (Sentinel Hub API)" if is_live else "NDMA hazard zone analysis",
         "changes_detected": len(changes),
         "changes": changes,
-        "note": "Satellite imagery available for visual inspection. Change detection shows areas with increased water/snow/landslide risk." if is_live else "Using hazard zone data as satellite proxy. Connect Copernicus API key for live Sentinel-2 imagery.",
+        "note": "Real Sentinel-2 NDWI/NDSI change detection active." if is_live else "Using hazard zone data as satellite proxy.",
     }
 
 
