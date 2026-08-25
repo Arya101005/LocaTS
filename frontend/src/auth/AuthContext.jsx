@@ -12,6 +12,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [token, setToken] = useState(() => localStorage.getItem('locats_token'));
+  const [storedRole, setStoredRole] = useState(() => localStorage.getItem('locats_role'));
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = useCallback(async (accessToken) => {
@@ -74,6 +75,12 @@ export function AuthProvider({ children }) {
     if (!data.access_token) throw new Error('No token received from server');
     localStorage.setItem('locats_token', data.access_token);
     setToken(data.access_token);
+    // Store role immediately — no need to wait for profile fetch
+    if (data.role) {
+      localStorage.setItem('locats_role', data.role);
+      setStoredRole(data.role);
+      setProfile({ role: data.role, email, full_name: email });
+    }
     return data;
   }, []);
 
@@ -85,19 +92,26 @@ export function AuthProvider({ children }) {
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
-    // If auto-confirmed, tokens are returned — log in immediately
     if (data.access_token) {
       localStorage.setItem('locats_token', data.access_token);
       setToken(data.access_token);
+    }
+    // Store role from signup response
+    if (data.role) {
+      localStorage.setItem('locats_role', data.role);
+      setStoredRole(data.role);
+      setProfile({ role: data.role, email, full_name: name || email });
     }
     return data;
   }, []);
 
   const logout = useCallback(() => {
     localStorage.removeItem('locats_token');
+    localStorage.removeItem('locats_role');
     setToken(null);
     setUser(null);
     setProfile(null);
+    setStoredRole(null);
   }, []);
 
   const becomeAdmin = useCallback(async () => {
@@ -113,10 +127,11 @@ export function AuthProvider({ children }) {
     } catch (e) { return { error: e.message }; }
   }, [token, fetchProfile]);
 
-  const role = profile?.role || (user?.email?.includes('admin') ? 'admin' : 'operator');
+  const role = profile?.role || storedRole || (user?.email === 'pranavarya2005@gmail.com' ? 'admin' : 'citizen');
   const isAdmin = role === 'admin';
   const isOperator = role === 'operator' || role === 'admin';
   const isViewer = role === 'viewer';
+  const isCitizen = role === 'citizen';
 
   const ctxValue = React.useMemo(() => ({
     user, profile, token, loading, login, signup, logout, becomeAdmin, isAdmin, isOperator, isViewer, role

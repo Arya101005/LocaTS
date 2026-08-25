@@ -210,20 +210,31 @@ def create_auth_routes(app):
             return {"error": str(e)}
 
     @app.post("/api/auth/login")
-    async def auth_login(login: AuthLogin):
-        """Login with email/password. Returns JWT access token."""
+    async def auth_login(login_req: AuthLogin):
+        """Login with email/password. Returns JWT access token and role."""
         client = _get_supabase_client()
         if not client:
             return {"error": "Supabase not configured."}
 
         try:
-            result = client.auth.sign_in_with_password({"email": login.email, "password": login.password})
+            result = client.auth.sign_in_with_password({"email": login_req.email, "password": login_req.password})
             if result.session:
+                # Determine role immediately — no extra API call needed
+                email_lower = login_req.email.lower()
+                role = "admin" if email_lower == "pranavarya2005@gmail.com" else "citizen"
+                # Try to get actual role from user_profiles table
+                try:
+                    prof = client.table("user_profiles").select("role").eq("id", result.user.id).execute()
+                    if prof.data and len(prof.data) > 0:
+                        role = prof.data[0].get("role", role)
+                except Exception:
+                    pass
                 return {
                     "access_token": result.session.access_token,
                     "refresh_token": result.session.refresh_token,
                     "expires_at": result.session.expires_at,
                     "user": {"email": result.user.email, "id": result.user.id},
+                    "role": role,
                 }
             return {"error": "Invalid credentials"}
         except Exception as e:

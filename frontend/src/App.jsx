@@ -465,15 +465,6 @@ function AppContent() {
     return () => window.removeEventListener('switchTab', handler);
   }, []);
 
-  // Audit verification — no auth needed
-  if (isAudit) {
-    return (
-      <Suspense fallback={<div style={{ padding: 40, textAlign: 'center', color: '#94A3B8' }}>Loading...</div>}>
-        <AuditVerify />
-      </Suspense>
-    );
-  }
-
   // Loading state
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#F6FAFD' }}>
@@ -492,28 +483,9 @@ function AppContent() {
   // Logged in — determine role and route accordingly
   const role = authRole || profile?.role || 'citizen';
 
-  // Citizen portal — completely separate mobile UI
-  if (isCitizen) {
-    return (
-      <Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F0F9F4' }}><div style={{ textAlign: 'center', color: '#6B7280' }}>Loading...</div></div>}>
-        <CitizenPortal user={user} profile={profile} onLogout={logout} />
-      </Suspense>
-    );
-  }
-
-  // CRITICAL: Citizens must NEVER see admin dashboard
-  if (isAdmin && role === 'citizen') {
+  // Citizens must NOT see admin dashboard
+  if (role === 'citizen') {
     window.location.href = '/citizen';
-    return null;
-  }
-
-  // Not on citizen/admin/audit — redirect based on role
-  if (!isAdmin && !isAudit) {
-    if (role === 'citizen') {
-      window.location.href = '/citizen';
-      return null;
-    }
-    window.location.href = '/admin';
     return null;
   }
 
@@ -603,11 +575,71 @@ function AppContent() {
   );
 }
 
+function CitizenWrapper() {
+  // Citizen portal uses its own auth check via localStorage
+  const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const token = localStorage.getItem('locats_token');
+    const role = localStorage.getItem('locats_role');
+    if (!token) {
+      // Not logged in — go to login
+      window.location.href = '/';
+      return;
+    }
+    // Verify token is still valid
+    fetch('/api/auth/me', { headers: { 'Authorization': `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(d => {
+        setUser(d.user);
+        setProfile({ role: role || 'citizen', email: d.user?.email });
+        setLoading(false);
+      })
+      .catch(() => {
+        localStorage.removeItem('locats_token');
+        localStorage.removeItem('locats_role');
+        window.location.href = '/';
+      });
+  }, []);
+
+  if (loading) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F0F9F4' }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ width: 52, height: 52, borderRadius: 14, background: 'linear-gradient(135deg, #16A34A, #0D9488)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontWeight: 800, fontSize: 22, color: '#fff' }}>L</div>
+        <div style={{ fontSize: 14, color: '#6B7280' }}>Loading citizen portal...</div>
+      </div>
+    </div>
+  );
+
+  const handleLogout = () => {
+    localStorage.removeItem('locats_token');
+    localStorage.removeItem('locats_role');
+    window.location.href = '/';
+  };
+
+  return (
+    <Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F0F9F4' }}><div style={{ color: '#6B7280' }}>Loading...</div></div>}>
+      <CitizenPortal user={user} profile={profile} onLogout={handleLogout} />
+    </Suspense>
+  );
+}
+
 export default function App() {
-  // Route-based rendering
   const path = window.location.pathname;
-  if (path.startsWith('/citizen') || path.startsWith('/audit')) {
-    return <AppContent />;
+  if (path.startsWith('/citizen')) {
+    return <CitizenWrapper />;
   }
-  return <AuthProvider><AppContent /></AuthProvider>;
+  return (
+    <AuthProvider>
+      {path.startsWith('/audit') ? (
+        <Suspense fallback={<div style={{ padding: 40, textAlign: 'center', color: '#94A3B8' }}>Loading...</div>}>
+          <AuditVerify />
+        </Suspense>
+      ) : (
+        <AppContent />
+      )}
+    </AuthProvider>
+  );
 }
