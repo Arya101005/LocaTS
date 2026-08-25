@@ -319,13 +319,17 @@ function UserManagement({ token }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
+  const [fetchError, setFetchError] = useState(null);
 
   const fetchUsers = useCallback(async () => {
+    setFetchError(null);
     try {
       const res = await fetch(`${API}/auth/users`, { headers: { 'Authorization': `Bearer ${token}` } });
+      if (res.status === 403) { setFetchError('You do not have admin access to view users.'); setUsers([]); return; }
+      if (!res.ok) { setFetchError(`Failed to load users (HTTP ${res.status})`); setUsers([]); return; }
       const data = await res.json();
       setUsers(data.users || []);
-    } catch (e) {}
+    } catch (e) { setFetchError('Could not connect to server.'); }
     finally { setLoading(false); }
   }, [token]);
 
@@ -368,6 +372,11 @@ function UserManagement({ token }) {
         ))}
       </div>
 
+      {fetchError && (
+        <div style={{ padding: '12px 16px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, marginBottom: 16, color: '#991B1B', fontSize: 13 }}>
+          {fetchError}
+        </div>
+      )}
       {loading ? (
         <div style={{ padding: 40, textAlign: 'center', color: '#94A3B8' }}>Loading users...</div>
       ) : (

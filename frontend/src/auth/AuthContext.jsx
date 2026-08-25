@@ -17,10 +17,13 @@ export function AuthProvider({ children }) {
 
   const fetchProfile = useCallback(async (accessToken) => {
     try {
-      const res = await fetch(`${API}/auth/me`, {
-        headers: { 'Authorization': `Bearer ${accessToken}` },
-      });
-      if (!res.ok) {
+      // Fetch /me and /profile in parallel
+      const headers = { 'Authorization': `Bearer ${accessToken}` };
+      const [meRes, profRes] = await Promise.all([
+        fetch(`${API}/auth/me`, { headers }),
+        fetch(`${API}/auth/profile`, { headers }),
+      ]);
+      if (!meRes.ok) {
         // Token invalid — clear it
         localStorage.removeItem('locats_token');
         setToken(null);
@@ -28,24 +31,15 @@ export function AuthProvider({ children }) {
         setProfile(null);
         return false;
       }
-      const data = await res.json();
-      setUser(data.user);
+      const meData = await meRes.json();
+      setUser(meData.user);
 
-      // Fetch full profile with role
-      try {
-        const pres = await fetch(`${API}/auth/profile`, {
-          headers: { 'Authorization': `Bearer ${accessToken}` },
-        });
-        if (pres.ok) {
-          const pdata = await pres.json();
-          setProfile(pdata);
-        } else {
-          // Fallback: determine role from email
-          const email = data.user?.email || '';
-          setProfile({ role: email.includes('admin') ? 'admin' : 'operator', full_name: email, email });
-        }
-      } catch {
-        const email = data.user?.email || '';
+      if (profRes.ok) {
+        const pdata = await profRes.json();
+        setProfile(pdata);
+      } else {
+        // Fallback: determine role from email
+        const email = meData.user?.email || '';
         setProfile({ role: email.includes('admin') ? 'admin' : 'operator', full_name: email, email });
       }
       return true;

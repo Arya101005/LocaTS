@@ -38,15 +38,21 @@ except ImportError:
 security = HTTPBearer(auto_error=False)
 
 
+_supabase_client = None
+
 def _get_supabase_client():
-    """Get Supabase client for auth operations."""
+    """Get cached Supabase client for auth operations."""
+    global _supabase_client
+    if _supabase_client is not None:
+        return _supabase_client
     url = os.environ.get("SUPABASE_URL", "")
     key = os.environ.get("SUPABASE_KEY", "")
     if not url or not key:
         return None
     try:
         from supabase import create_client
-        return create_client(url, key)
+        _supabase_client = create_client(url, key)
+        return _supabase_client
     except Exception:
         return None
 
@@ -129,6 +135,17 @@ async def optional_auth(
     return decode_jwt(credentials.credentials)
 
 
+def _get_profile_role(client, user_id: str) -> Optional[str]:
+    """Look up the real role from user_profiles table."""
+    try:
+        result = client.table("user_profiles").select("role").eq("id", user_id).execute()
+        if result.data and len(result.data) > 0:
+            return result.data[0].get("role")
+    except Exception:
+        pass
+    return None
+
+
 # ------------------------------------------------------------------
 # Auth endpoints
 # ------------------------------------------------------------------
@@ -168,9 +185,9 @@ def create_auth_routes(app):
                     client.table("user_profiles").upsert({
                         "id": result.user.id, "email": signup.email,
                         "role": default_role, "full_name": signup.name, "is_active": True,
-                    }).execute()
-            except Exception:
-                pass
+                    }, on_conflict="id").execute()
+            except Exception as e:
+                if logger: logger.warning(f"Profile upsert failed for {signup.email}: {e}")
             # If session returned (email confirm OFF), user is ready to sign in
             if result.session:
                 return {"status": "signup_complete", "message": "Account created! Please sign in."}
@@ -200,8 +217,19 @@ def create_auth_routes(app):
                     prof = client.table("user_profiles").select("role").eq("id", result.user.id).execute()
                     if prof.data and len(prof.data) > 0:
                         role = prof.data[0].get("role", role)
-                except Exception:
-                    pass
+                    else:
+                        # Profile missing — auto-create it (handles old users / migration gaps)
+                        full_name = "Arya" if role == "admin" else ""
+                        client.table("user_profiles").upsert({
+                            "id": result.user.id,
+                            "email": login_req.email,
+                            "role": role,
+                            "full_name": full_name,
+                            "is_active": True,
+                        }, on_conflict="id").execute()
+                        if logger: logger.info(f"Auto-created profile for {login_req.email} (role={role})")
+                except Exception as e:
+                    if logger: logger.warning(f"Profile lookup/creation failed for {login_req.email}: {e}")
                 return {
                     "access_token": result.session.access_token,
                     "refresh_token": result.session.refresh_token,
@@ -251,20 +279,49 @@ def create_auth_routes(app):
             "is_active": True,
         }
 
+    def _backfill_profiles(client, logger):
+        """Auto-create user_profiles rows for any auth.users missing one."""
+        try:
+            auth_users = client.auth.admin.list_users().users
+            existing = client.table("user_profiles").select("id").execute()
+            existing_ids = {u["id"] for u in (existing.data or [])}
+            for au in auth_users:
+                if au.id not in existing_ids:
+                    role = "admin" if au.email.lower() == "pranavarya2005@gmail.com" else "citizen"
+                    full_name = getattr(au, "user_metadata", {}).get("full_name", "") or ""
+                    client.table("user_profiles").upsert({
+                        "id": au.id, "email": au.email, "role": role,
+                        "full_name": full_name, "is_active": True,
+                    }, on_conflict="id").execute()
+                    if logger: logger.info(f"Auto-backfilled profile for {au.email} (role={role})")
+        except Exception as e:
+            if logger: logger.warning(f"Profile backfill failed: {e}")
+
     @app.get("/api/auth/users")
     async def list_users(user=Depends(require_auth)):
         """List all user profiles (admin only)."""
         email = user.get("email", "")
-        role = user.get("role", "operator")
-        # Allow if admin or if email contains 'admin'
-        if role != "admin" and "admin" not in email.lower():
-            raise HTTPException(status_code=403, detail="Admin access required")
         client = _get_supabase_client()
+        is_super_admin = email.lower() == "pranavarya2005@gmail.com"
         if client:
             try:
                 result = client.table("user_profiles").select("*").execute()
-                return {"users": result.data}
+                all_users = result.data or []
+                # Admin check from the same data — no extra query
+                if not is_super_admin:
+                    me = next((u for u in all_users if u.get("id") == user.get("sub")), None)
+                    if not me or me.get("role") != "admin":
+                        raise HTTPException(status_code=403, detail="Admin access required")
+                # If table is empty but auth users exist, auto-backfill
+                if is_super_admin and len(all_users) == 0:
+                    _backfill_profiles(client, logger)
+                    result = client.table("user_profiles").select("*").execute()
+                    all_users = result.data or []
+                return {"users": all_users}
+            except HTTPException:
+                raise
             except Exception as e:
+                if logger: logger.warning(f"list_users query failed: {e}")
                 return {"users": [], "note": "user_profiles table may not exist. Run setup_auth.sql first."}
         return {"users": []}
 
@@ -272,11 +329,16 @@ def create_auth_routes(app):
     async def update_user_role(user_id: str, role: str, user=Depends(require_auth)):
         """Update a user's role (admin only)."""
         email = user.get("email", "")
-        if user.get("role") != "admin" and "admin" not in email.lower():
+        client = _get_supabase_client()
+        is_super_admin = email.lower() == "pranavarya2005@gmail.com"
+        if not is_super_admin and client:
+            user_role = _get_profile_role(client, user.get("sub", "")) or "citizen"
+            if user_role != "admin":
+                raise HTTPException(status_code=403, detail="Admin access required")
+        elif not is_super_admin and not client:
             raise HTTPException(status_code=403, detail="Admin access required")
         if role not in ("admin", "operator", "viewer", "citizen"):
             raise HTTPException(status_code=400, detail="Invalid role")
-        client = _get_supabase_client()
         if client:
             try:
                 client.table("user_profiles").update({"role": role}).eq("id", user_id).execute()
