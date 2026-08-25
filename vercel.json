@@ -21,6 +21,14 @@
             "dest": "/api/index.py"
         },
         {
+            "src": "/assets/(.*)",
+            "dest": "/frontend/assets/$1"
+        },
+        {
+            "src": "/(citizen|admin|audit)(.*)",
+            "dest": "/frontend/index.html"
+        },
+        {
             "src": "/(.*)",
             "dest": "/frontend/$1"
         }
