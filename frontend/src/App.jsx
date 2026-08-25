@@ -48,28 +48,15 @@ function LandingPage() {
     setError(''); setSuccess(''); setLoading(true);
     try {
       if (mode === 'login') {
-        const data = await login(email, password);
-        // Redirect based on role — wait a moment for profile to load
-        setTimeout(() => {
-          const userRole = profile?.role || 'citizen';
-          if (userRole === 'citizen') {
-            window.location.href = '/citizen';
-          } else {
-            window.location.href = '/admin';
-          }
-        }, 500);
+        await login(email, password);
+        // Determine role from email immediately — pranavarya2005@gmail.com is admin
+        const isAdminEmail = email.toLowerCase() === 'pranavarya2005@gmail.com';
+        window.location.href = isAdminEmail ? '/admin' : '/citizen';
       } else {
         const res = await signup(email, password, name);
         if (res.status === 'signup_complete' && res.access_token) {
-          // Auto-login succeeded — redirect
-          setTimeout(() => {
-            const userRole = res.role || 'citizen';
-            if (userRole === 'citizen') {
-              window.location.href = '/citizen';
-            } else {
-              window.location.href = '/admin';
-            }
-          }, 500);
+          const isAdminEmail = email.toLowerCase() === 'pranavarya2005@gmail.com';
+          window.location.href = isAdminEmail ? '/admin' : '/citizen';
         } else {
           setSuccess(res.message || 'Account created! You can now sign in.');
           setMode('login');
