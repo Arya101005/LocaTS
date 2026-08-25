@@ -34,30 +34,82 @@ const NAV_ITEMS = [
 ];
 
 function LandingPage() {
-  return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #F0F9F4 0%, #ECFDF5 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Inter, sans-serif' }}>
-      <div style={{ textAlign: 'center', maxWidth: 520, padding: 40 }}>
-        <div style={{ width: 72, height: 72, borderRadius: 18, background: 'linear-gradient(135deg, #16A34A, #0D9488)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontWeight: 800, fontSize: 30, color: '#fff', boxShadow: '0 8px 24px rgba(22,163,74,0.3)' }}>L</div>
-        <h1 style={{ fontSize: 32, fontWeight: 800, color: '#111827', marginBottom: 8, letterSpacing: -1 }}>LocaTS</h1>
-        <p style={{ fontSize: 16, color: '#6B7280', marginBottom: 36, lineHeight: 1.5 }}>Intelligent Disaster Relocation Planning<br/>Chamoli District, Uttarakhand</p>
+  const [visible, setVisible] = useState(false);
+  useEffect(() => { setTimeout(() => setVisible(true), 100); }, []);
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <a href="/citizen" style={{ display: 'block', padding: '24px 32px', background: '#fff', border: '2px solid #E5E7EB', borderRadius: 16, textDecoration: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', transition: 'all 0.2s' }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = '#22C55E'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(34,197,94,0.12)'; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)'; }}>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#16A34A', marginBottom: 6 }}>Public / Citizen Portal</div>
-            <div style={{ fontSize: 14, color: '#6B7280' }}>Check your village status, find shelters, report hazards. No login needed.</div>
+  return (
+    <div className="landing-hero" style={{ minHeight: '100vh', background: 'linear-gradient(180deg, #F0F9F4 0%, #ECFDF5 50%, #F0FDF4 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Inter, sans-serif', position: 'relative', overflow: 'hidden' }}>
+      {/* Floating background orbs */}
+      <div className="animate-float" style={{ position: 'absolute', top: '10%', left: '8%', width: 180, height: 180, borderRadius: '50%', background: 'radial-gradient(circle, rgba(22,163,74,0.08) 0%, transparent 70%)', pointerEvents: 'none' }} />
+      <div className="animate-float" style={{ position: 'absolute', bottom: '15%', right: '10%', width: 240, height: 240, borderRadius: '50%', background: 'radial-gradient(circle, rgba(13,148,136,0.06) 0%, transparent 70%)', pointerEvents: 'none', animationDelay: '1.5s' }} />
+      <div className="animate-float" style={{ position: 'absolute', top: '60%', left: '70%', width: 120, height: 120, borderRadius: '50%', background: 'radial-gradient(circle, rgba(139,92,246,0.05) 0%, transparent 70%)', pointerEvents: 'none', animationDelay: '0.8s' }} />
+
+      <div style={{ textAlign: 'center', maxWidth: 580, padding: 40, position: 'relative', zIndex: 1 }}>
+        {/* Animated logo */}
+        <div className={`animate-fade-in-scale ${visible ? '' : ''}`} style={{ opacity: visible ? 1 : 0, transition: 'opacity 0.6s ease' }}>
+          <div className="animate-glow" style={{ width: 80, height: 80, borderRadius: 20, background: 'linear-gradient(135deg, #16A34A, #0D9488)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', fontWeight: 800, fontSize: 34, color: '#fff', boxShadow: '0 8px 32px rgba(22,163,74,0.3)', position: 'relative' }}>
+            L
+            <div style={{ position: 'absolute', inset: -3, borderRadius: 23, border: '2px solid rgba(22,163,74,0.15)', animation: 'pulse 2s infinite' }} />
+          </div>
+        </div>
+
+        <h1 className={`animate-fade-in-up ${visible ? '' : ''}`} style={{ opacity: visible ? 1 : 0, transition: 'opacity 0.6s ease 0.15s', fontSize: 40, fontWeight: 800, color: '#111827', marginBottom: 8, letterSpacing: -1.5 }}>
+          <span className="gradient-text">LocaTS</span>
+        </h1>
+        <p className={`animate-fade-in-up ${visible ? '' : ''}`} style={{ opacity: visible ? 1 : 0, transition: 'opacity 0.6s ease 0.25s', fontSize: 17, color: '#6B7280', marginBottom: 40, lineHeight: 1.6 }}>
+          Intelligent Disaster Relocation Planning<br/>
+          <span style={{ fontWeight: 600, color: '#374151' }}>Chamoli District, Uttarakhand</span>
+        </p>
+
+        {/* Stats row */}
+        <div className={`stagger-children animate-fade-in-up ${visible ? '' : ''}`} style={{ opacity: visible ? 1 : 0, transition: 'opacity 0.6s ease 0.3s', display: 'flex', justifyContent: 'center', gap: 32, marginBottom: 40 }}>
+          {[{ n: '149K', l: 'People Evacuated' }, { n: '26', l: 'Shelters' }, { n: '24', l: 'Villages' }].map(s => (
+            <div key={s.l} style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 28, fontWeight: 800, color: '#16A34A', letterSpacing: -1 }}>{s.n}</div>
+              <div style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 500, marginTop: 2 }}>{s.l}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="stagger-children" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <a href="/citizen" className="card" style={{ display: 'block', padding: '28px 32px', textDecoration: 'none', border: '2px solid #E5E7EB', transition: 'all 0.25s ease', animation: 'fadeInUp 0.5s ease-out forwards', animationDelay: '0.35s', opacity: 0 }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = '#22C55E'; e.currentTarget.style.boxShadow = '0 8px 30px rgba(34,197,94,0.15)'; e.currentTarget.style.transform = 'translateY(-3px)'; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.boxShadow = ''; e.currentTarget.style.transform = ''; }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: '#F0FDF4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+              </div>
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: '#16A34A', marginBottom: 2 }}>Public / Citizen Portal</div>
+                <div style={{ fontSize: 13, color: '#6B7280' }}>Check your village status, find shelters, report hazards. No login needed.</div>
+              </div>
+            </div>
           </a>
 
-          <a href="/admin" style={{ display: 'block', padding: '24px 32px', background: '#fff', border: '2px solid #E5E7EB', borderRadius: 16, textDecoration: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', transition: 'all 0.2s' }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = '#2563EB'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(37,99,235,0.12)'; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.04)'; }}>
-            <div style={{ fontSize: 20, fontWeight: 700, color: '#2563EB', marginBottom: 6 }}>Admin / Operator Login</div>
-            <div style={{ fontSize: 14, color: '#6B7280' }}>Full dashboard with optimization, shelter management, and crowd reports.</div>
+          <a href="/admin" className="card" style={{ display: 'block', padding: '28px 32px', textDecoration: 'none', border: '2px solid #E5E7EB', transition: 'all 0.25s ease', animation: 'fadeInUp 0.5s ease-out forwards', animationDelay: '0.45s', opacity: 0 }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = '#2563EB'; e.currentTarget.style.boxShadow = '0 8px 30px rgba(37,99,235,0.12)'; e.currentTarget.style.transform = 'translateY(-3px)'; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.boxShadow = ''; e.currentTarget.style.transform = ''; }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+              </div>
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: '#2563EB', marginBottom: 2 }}>Admin / Operator Login</div>
+                <div style={{ fontSize: 13, color: '#6B7280' }}>Full dashboard with optimization, shelter management, and crowd reports.</div>
+              </div>
+            </div>
           </a>
         </div>
 
-        <div style={{ marginTop: 32, fontSize: 12, color: '#9CA3AF' }}>
+        <div className={`animate-fade-in-up ${visible ? '' : ''}`} style={{ opacity: visible ? 1 : 0, transition: 'opacity 0.6s ease 0.6s', marginTop: 36, display: 'flex', justifyContent: 'center', gap: 20 }}>
+          {[{ label: 'Hazard Fusion', icon: '🛡' }, { label: 'OR-Tools', icon: '⚡' }, { label: 'Real-time', icon: '📡' }].map(f => (
+            <div key={f.label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#6B7280', padding: '6px 14px', background: '#fff', borderRadius: 20, border: '1px solid #E5E7EB' }}>
+              <span>{f.icon}</span> {f.label}
+            </div>
+          ))}
+        </div>
+
+        <div className={`animate-fade-in-up ${visible ? '' : ''}`} style={{ opacity: visible ? 1 : 0, transition: 'opacity 0.6s ease 0.7s', marginTop: 28, fontSize: 12, color: '#9CA3AF' }}>
           SIH26191 — Ministry of Home Affairs, Disaster Management
         </div>
       </div>
@@ -432,8 +484,9 @@ function AppContent() {
       </nav>
 
       <div className="app-main">
-        {error && <div className="alert-banner error">{error}</div>}
-        <Suspense fallback={<div style={{ padding: 40, textAlign: 'center', color: '#94A3B8' }}>Loading module...</div>}>
+        {error && <div className="alert-banner error toast-notification">{error}</div>}
+        <Suspense fallback={<div style={{ padding: 40, textAlign: 'center', color: '#94A3B8' }}><div className="skeleton" style={{ width: 200, height: 20, margin: '0 auto 12px' }} /><div className="skeleton" style={{ width: 300, height: 14, margin: '0 auto' }} /></div>}>
+        <div key={activeTab} className="page-transition">
         {activeTab === 'dashboard' && <Dashboard data={dashboardData} onOptimize={triggerOptimization} onReOptimize={reOptimize} optimizing={optimizing} />}
         {activeTab === 'analysis' && <RelocationAnalysis data={dashboardData} />}
         {activeTab === 'shelters' && <ShelterManagement data={dashboardData} />}
@@ -447,6 +500,7 @@ function AppContent() {
         {activeTab === 'users' && <UserManagement token={token} />}
         {activeTab === 'multidistrict' && <div style={{ padding: 28, overflow: 'auto', height: '100%' }}><MultiDistrict /></div>}
         {activeTab === 'features' && <div style={{ padding: 28, overflow: 'auto', height: '100%' }}><FeatureShowcase /></div>}
+        </div>
         </Suspense>
       </div>
     </div>

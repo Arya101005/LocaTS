@@ -284,14 +284,14 @@ export default function Dashboard({ data, onOptimize, onReOptimize, optimizing }
         {/* System Status */}
         <div>
           <div className="card-header">System Status</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <div className="stagger-children" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             {[
               { l: 'Hazard Zones', v: data?.hazard_zones?.length || 5, c: '#DC2626', bg: '#FEF2F2' },
               { l: 'Shelters', v: cap.active_shelters || 18, c: '#16A34A', bg: '#F0FDF4' },
               { l: 'Villages', v: cap.total_population ? Math.round(cap.total_population / 6000) : 24, c: '#16A34A', bg: '#F0FDF4' },
               { l: 'Roads', v: 'Live', c: '#0D9488', bg: '#F0FDFA' }
             ].map((s, i) => (
-              <div key={i} style={{ background: s.bg, border: '1px solid #E8F0E8', borderRadius: 10, padding: '14px 12px', textAlign: 'center' }}>
+              <div key={i} className="animate-fade-in-up" style={{ background: s.bg, border: '1px solid #E8F0E8', borderRadius: 10, padding: '14px 12px', textAlign: 'center', transition: 'transform 0.2s, box-shadow 0.2s' }} onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.03)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.06)'; }} onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}>
                 <div className="stat-value" style={{ fontSize: 26, color: s.c }}>{s.v}</div>
                 <div className="stat-label">{s.l}</div>
               </div>
