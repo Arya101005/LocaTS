@@ -1,0 +1,395 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            79.55,
+            30.47
+          ],
+          [
+            79.57,
+            30.56
+          ]
+        ]
+      },
+      "properties": {
+        "id": "road-001",
+        "from_node": "hab-001",
+        "to_node": "hab-004",
+        "distance_km": 15.0,
+        "travel_time_min": 45.0,
+        "status": "open",
+        "throughput": 500.0,
+        "damage_factor": 1.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            79.57,
+            30.56
+          ],
+          [
+            79.49,
+            30.74
+          ]
+        ]
+      },
+      "properties": {
+        "id": "road-002",
+        "from_node": "hab-004",
+        "to_node": "hab-005",
+        "distance_km": 25.0,
+        "travel_time_min": 75.0,
+        "status": "open",
+        "throughput": 300.0,
+        "damage_factor": 1.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            79.62,
+            30.38
+          ],
+          [
+            79.55,
+            30.47
+          ]
+        ]
+      },
+      "properties": {
+        "id": "road-003",
+        "from_node": "hab-003",
+        "to_node": "hab-001",
+        "distance_km": 12.0,
+        "travel_time_min": 35.0,
+        "status": "open",
+        "throughput": 400.0,
+        "damage_factor": 1.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            79.57,
+            30.56
+          ],
+          [
+            79.58,
+            30.55
+          ]
+        ]
+      },
+      "properties": {
+        "id": "road-004",
+        "from_node": "hab-004",
+        "to_node": "shelter-003",
+        "distance_km": 2.0,
+        "travel_time_min": 10.0,
+        "status": "open",
+        "throughput": 1000.0,
+        "damage_factor": 1.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            79.57,
+            30.56
+          ],
+          [
+            79.33,
+            30.4
+          ]
+        ]
+      },
+      "properties": {
+        "id": "road-005",
+        "from_node": "hab-004",
+        "to_node": "hab-008",
+        "distance_km": 30.0,
+        "travel_time_min": 90.0,
+        "status": "open",
+        "throughput": 400.0,
+        "damage_factor": 1.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            79.33,
+            30.4
+          ],
+          [
+            79.34,
+            30.41
+          ]
+        ]
+      },
+      "properties": {
+        "id": "road-006",
+        "from_node": "hab-008",
+        "to_node": "shelter-001",
+        "distance_km": 3.0,
+        "travel_time_min": 10.0,
+        "status": "open",
+        "throughput": 800.0,
+        "damage_factor": 1.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            79.32,
+            30.27
+          ],
+          [
+            79.32,
+            30.33
+          ]
+        ]
+      },
+      "properties": {
+        "id": "road-007",
+        "from_node": "hab-006",
+        "to_node": "hab-007",
+        "distance_km": 8.0,
+        "travel_time_min": 20.0,
+        "status": "open",
+        "throughput": 500.0,
+        "damage_factor": 1.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            79.32,
+            30.27
+          ],
+          [
+            79.33,
+            30.28
+          ]
+        ]
+      },
+      "properties": {
+        "id": "road-008",
+        "from_node": "hab-006",
+        "to_node": "shelter-002",
+        "distance_km": 2.0,
+        "travel_time_min": 8.0,
+        "status": "open",
+        "throughput": 800.0,
+        "damage_factor": 1.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            79.32,
+            30.33
+          ],
+          [
+            79.33,
+            30.28
+          ]
+        ]
+      },
+      "properties": {
+        "id": "road-009",
+        "from_node": "hab-007",
+        "to_node": "shelter-002",
+        "distance_km": 5.0,
+        "travel_time_min": 15.0,
+        "status": "open",
+        "throughput": 500.0,
+        "damage_factor": 1.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            79.33,
+            30.4
+          ],
+          [
+            79.18,
+            30.22
+          ]
+        ]
+      },
+      "properties": {
+        "id": "road-010",
+        "from_node": "hab-008",
+        "to_node": "shelter-004",
+        "distance_km": 80.0,
+        "travel_time_min": 240.0,
+        "status": "open",
+        "throughput": 200.0,
+        "damage_factor": 1.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            79.32,
+            30.27
+          ],
+          [
+            79.19,
+            30.23
+          ]
+        ]
+      },
+      "properties": {
+        "id": "road-011",
+        "from_node": "hab-006",
+        "to_node": "shelter-005",
+        "distance_km": 60.0,
+        "travel_time_min": 180.0,
+        "status": "open",
+        "throughput": 200.0,
+        "damage_factor": 1.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            79.58,
+            30.49
+          ],
+          [
+            79.57,
+            30.56
+          ]
+        ]
+      },
+      "properties": {
+        "id": "road-012",
+        "from_node": "hab-002",
+        "to_node": "hab-004",
+        "distance_km": 18.0,
+        "travel_time_min": 55.0,
+        "status": "open",
+        "throughput": 200.0,
+        "damage_factor": 1.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            79.33,
+            30.4
+          ],
+          [
+            79.33,
+            30.28
+          ]
+        ]
+      },
+      "properties": {
+        "id": "road-013",
+        "from_node": "hab-008",
+        "to_node": "shelter-002",
+        "distance_km": 25.0,
+        "travel_time_min": 75.0,
+        "status": "open",
+        "throughput": 300.0,
+        "damage_factor": 1.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            79.49,
+            30.74
+          ],
+          [
+            79.58,
+            30.55
+          ]
+        ]
+      },
+      "properties": {
+        "id": "road-014",
+        "from_node": "hab-005",
+        "to_node": "shelter-003",
+        "distance_km": 25.0,
+        "travel_time_min": 75.0,
+        "status": "open",
+        "throughput": 300.0,
+        "damage_factor": 1.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            79.55,
+            30.47
+          ],
+          [
+            79.58,
+            30.55
+          ]
+        ]
+      },
+      "properties": {
+        "id": "road-015",
+        "from_node": "hab-001",
+        "to_node": "shelter-003",
+        "distance_km": 17.0,
+        "travel_time_min": 50.0,
+        "status": "open",
+        "throughput": 300.0,
+        "damage_factor": 1.0
+      }
+    }
+  ]
+}

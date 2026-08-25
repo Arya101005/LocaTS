@@ -1,0 +1,23 @@
+{
+  "name": "locats-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "LocaTS Operator Dashboard - Hazard Monitoring & Relocation Planning",
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "maplibre-gl": "^3.6.0",
+    "react-map-gl": "^7.1.0",
+    "axios": "^1.6.0",
+    "lucide-react": "^0.294.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.0",
+    "vite": "^5.0.0"
+  }
+}

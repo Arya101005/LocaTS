@@ -1,0 +1,157 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          79.55,
+          30.47
+        ]
+      },
+      "properties": {
+        "id": "hab-001",
+        "name": "Raini Village",
+        "population": 1200,
+        "district": "Chamoli",
+        "block": "Chamoli",
+        "elevation_m": 2400.0,
+        "social_vulnerability": 0.15
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          79.58,
+          30.49
+        ]
+      },
+      "properties": {
+        "id": "hab-002",
+        "name": "Tapovan Settlement",
+        "population": 800,
+        "district": "Chamoli",
+        "block": "Chamoli",
+        "elevation_m": 2600.0,
+        "social_vulnerability": 0.1805
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          79.62,
+          30.38
+        ]
+      },
+      "properties": {
+        "id": "hab-003",
+        "name": "Ghat Village",
+        "population": 2000,
+        "district": "Chamoli",
+        "block": "Ghat",
+        "elevation_m": 1800.0,
+        "social_vulnerability": 0.132
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          79.57,
+          30.56
+        ]
+      },
+      "properties": {
+        "id": "hab-004",
+        "name": "Joshimath Town",
+        "population": 3500,
+        "district": "Chamoli",
+        "block": "Joshimath",
+        "elevation_m": 1889.0,
+        "social_vulnerability": 0.10400000000000001
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          79.49,
+          30.74
+        ]
+      },
+      "properties": {
+        "id": "hab-005",
+        "name": "Badrinath Puri",
+        "population": 1500,
+        "district": "Chamoli",
+        "block": "Badrinath",
+        "elevation_m": 3300.0,
+        "social_vulnerability": 0.1545
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          79.32,
+          30.27
+        ]
+      },
+      "properties": {
+        "id": "hab-006",
+        "name": "Karnaprayag Town",
+        "population": 2500,
+        "district": "Chamoli",
+        "block": "Karnaprayag",
+        "elevation_m": 1450.0,
+        "social_vulnerability": 0.10450000000000001
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          79.32,
+          30.33
+        ]
+      },
+      "properties": {
+        "id": "hab-007",
+        "name": "Nandprayag Settlement",
+        "population": 1200,
+        "district": "Chamoli",
+        "block": "Nandprayag",
+        "elevation_m": 1300.0,
+        "social_vulnerability": 0.2125
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          79.33,
+          30.4
+        ]
+      },
+      "properties": {
+        "id": "hab-008",
+        "name": "Gopeshwar Town",
+        "population": 3000,
+        "district": "Chamoli",
+        "block": "Chamoli",
+        "elevation_m": 1500.0,
+        "social_vulnerability": 0.0945
+      }
+    }
+  ]
+}

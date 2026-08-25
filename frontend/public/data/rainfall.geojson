@@ -1,0 +1,90 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          79.569,
+          30.5556
+        ]
+      },
+      "properties": {
+        "station": "Joshimath",
+        "value_mm": 44.9,
+        "source": "imd_modeled",
+        "quality": "modeled (based on IMD historical patterns)",
+        "timestamp": "2026-08-24T05:48:26.065576"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          79.3292,
+          30.4044
+        ]
+      },
+      "properties": {
+        "station": "Gopeshwar",
+        "value_mm": 40.0,
+        "source": "imd_modeled",
+        "quality": "modeled (based on IMD historical patterns)",
+        "timestamp": "2026-08-24T05:48:26.065576"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          79.319,
+          30.267
+        ]
+      },
+      "properties": {
+        "station": "Karnaprayag",
+        "value_mm": 74.7,
+        "source": "imd_modeled",
+        "quality": "modeled (based on IMD historical patterns)",
+        "timestamp": "2026-08-24T05:48:26.065576"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          79.4939,
+          30.7429
+        ]
+      },
+      "properties": {
+        "station": "Badrinath",
+        "value_mm": 49.7,
+        "source": "imd_modeled",
+        "quality": "modeled (based on IMD historical patterns)",
+        "timestamp": "2026-08-24T05:48:26.065576"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          79.35,
+          30.42
+        ]
+      },
+      "properties": {
+        "station": "Chamoli",
+        "value_mm": 67.7,
+        "source": "imd_modeled",
+        "quality": "modeled (based on IMD historical patterns)",
+        "timestamp": "2026-08-24T05:48:26.065576"
+      }
+    }
+  ]
+}

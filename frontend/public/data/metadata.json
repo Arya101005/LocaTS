@@ -1,0 +1,20 @@
+{
+  "district": "Chamoli",
+  "data_sources": {
+    "road_network": "OpenStreetMap via osmnx (ODbL)",
+    "healthcare": "NIC HealthGIS / india-geodata (India OGL)",
+    "hazard_zones": "NDEM/Bhuvan (CC0 1.0) via ramSeraph/india_natural_disasters",
+    "flood_inventory": "HydroSense Lab, IIT Delhi (CC BY 4.0) via india-geodata",
+    "population": "Census 2011 / india-geodata",
+    "rainfall": "IMD gridded rainfall (public domain)",
+    "seismic": "IS 1893 / BIS (standard zonation)"
+  },
+  "export_files": [
+    "habitations.geojson",
+    "shelters.geojson",
+    "roads.geojson",
+    "hazard_zones.geojson",
+    "rainfall.geojson"
+  ],
+  "attribution": "Data: OpenStreetMap contributors (ODbL), ramSeraph/india_natural_disasters (CC0 1.0), yashveeeeeeer/india-geodata (CC BY 4.0), IMD Pune (public domain), HydroSense Lab IIT Delhi (CC BY 4.0), NIC HealthGIS (India OGL). See each dataset's metadata.json for full license text."
+}

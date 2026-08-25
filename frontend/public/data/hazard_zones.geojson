@@ -1,0 +1,23 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          79.5,
+          30.5
+        ]
+      },
+      "properties": {
+        "id": "seismic-chamoli",
+        "hazard_type": "seismic",
+        "severity": 0.75,
+        "zone_type": "red",
+        "radius_km": 50.0,
+        "source": "IS 1893 / BIS"
+      }
+    }
+  ]
+}

@@ -1,0 +1,115 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          79.34,
+          30.41
+        ]
+      },
+      "properties": {
+        "id": "shelter-001",
+        "name": "Govt Inter College, Gopeshwar",
+        "bed_capacity": 3500,
+        "beds_available": 3500,
+        "healthcare_beds_per_hour": 20.0,
+        "water_capacity_lpd": 80000.0,
+        "is_accessible": true,
+        "shelter_type": "school",
+        "district": "Chamoli",
+        "is_active": true
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          79.33,
+          30.28
+        ]
+      },
+      "properties": {
+        "id": "shelter-002",
+        "name": "Community Hall, Karnaprayag",
+        "bed_capacity": 3000,
+        "beds_available": 3000,
+        "healthcare_beds_per_hour": 10.0,
+        "water_capacity_lpd": 60000.0,
+        "is_accessible": true,
+        "shelter_type": "community_hall",
+        "district": "Chamoli",
+        "is_active": true
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          79.58,
+          30.55
+        ]
+      },
+      "properties": {
+        "id": "shelter-003",
+        "name": "ITBP Camp, Joshimath",
+        "bed_capacity": 3500,
+        "beds_available": 3500,
+        "healthcare_beds_per_hour": 30.0,
+        "water_capacity_lpd": 80000.0,
+        "is_accessible": true,
+        "shelter_type": "govt_building",
+        "district": "Chamoli",
+        "is_active": true
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          79.18,
+          30.22
+        ]
+      },
+      "properties": {
+        "id": "shelter-004",
+        "name": "Tent Colony, Srinagar (Pauri)",
+        "bed_capacity": 4500,
+        "beds_available": 4500,
+        "healthcare_beds_per_hour": 15.0,
+        "water_capacity_lpd": 100000.0,
+        "is_accessible": false,
+        "shelter_type": "tent",
+        "district": "Pauri Garhwal",
+        "is_active": true
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          79.19,
+          30.23
+        ]
+      },
+      "properties": {
+        "id": "shelter-005",
+        "name": "District Hospital, Srinagar",
+        "bed_capacity": 4000,
+        "beds_available": 4000,
+        "healthcare_beds_per_hour": 40.0,
+        "water_capacity_lpd": 90000.0,
+        "is_accessible": true,
+        "shelter_type": "govt_building",
+        "district": "Pauri Garhwal",
+        "is_active": true
+      }
+    }
+  ]
+}
