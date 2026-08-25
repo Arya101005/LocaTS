@@ -22,7 +22,7 @@ export function useSSE(url = '/api/sse/stream', onUpdate) {
   }, [onUpdate]);
 
   const connect = useCallback(() => {
-    if (!mountedRef.current) return;
+    if (!mountedRef.current || !url) return;
 
     // If too many failures, stop trying (serverless environment)
     if (failCountRef.current >= 3) {

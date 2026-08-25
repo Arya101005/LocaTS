@@ -435,9 +435,9 @@ function AppContent() {
     try { const res = await fetch(`${API}/dashboard`); if (!res.ok) throw new Error(`HTTP ${res.status}`); setDashboardData(await res.json()); setError(null); } catch (err) { setError(err.message); }
   }, []);
 
-  // SSE live updates — only set status, don't re-fetch dashboard on every update
+  // SSE live updates — only on admin pages, not citizen
   const { connected: sseConnected, lastUpdate: sseLastUpdate, reconnecting } = useSSE(
-    '/api/sse/stream',
+    isAdmin ? '/api/sse/stream' : null,
     useCallback((data) => {
       setLiveStatus(data);
     }, [])
@@ -501,7 +501,13 @@ function AppContent() {
     );
   }
 
-  // Not on citizen or audit path — redirect based on role
+  // CRITICAL: Citizens must NEVER see admin dashboard
+  if (isAdmin && role === 'citizen') {
+    window.location.href = '/citizen';
+    return null;
+  }
+
+  // Not on citizen/admin/audit — redirect based on role
   if (!isAdmin && !isAudit) {
     if (role === 'citizen') {
       window.location.href = '/citizen';
@@ -511,7 +517,7 @@ function AppContent() {
     return null;
   }
 
-  // Admin/operator portal — auth required (role already defined above)
+  // Admin/operator portal — auth required
   const filteredNav = NAV_ITEMS.filter(item => item.roles.includes(role));
   const Icon = ({ path, size = 18 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d={path} /></svg>;
 
