@@ -111,8 +111,8 @@ function LandingPage() {
           </form>
 
           {mode === 'login' && (
-            <div style={{ marginTop: 16, textAlign: 'center' }}>
-              <a href="/citizen" style={{ fontSize: 12, color: '#16A34A', textDecoration: 'none', fontWeight: 500 }}>Citizen Portal (No login needed) →</a>
+            <div style={{ marginTop: 16, textAlign: 'center', fontSize: 12, color: '#94A3B8' }}>
+              Admin? Sign in with your admin credentials.
             </div>
           )}
           {mode === 'signup' && (
@@ -455,15 +455,6 @@ function AppContent() {
     return () => window.removeEventListener('switchTab', handler);
   }, []);
 
-  // Citizen portal — no auth needed
-  if (isCitizen) {
-    return (
-      <Suspense fallback={<div style={{ padding: 40, textAlign: 'center', color: '#94A3B8' }}>Loading...</div>}>
-        <CitizenPortal />
-      </Suspense>
-    );
-  }
-
   // Audit verification — no auth needed
   if (isAudit) {
     return (
@@ -473,12 +464,7 @@ function AppContent() {
     );
   }
 
-  // Landing page — no auth
-  if (!isAdmin && !user) {
-    return <LandingPage />;
-  }
-
-  // Admin portal — auth required
+  // Loading state
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#F6FAFD' }}>
       <div style={{ textAlign: 'center' }}>
@@ -488,9 +474,53 @@ function AppContent() {
     </div>
   );
 
-  if (!user) return <LoginPage />;
+  // Not logged in — show landing page with login/signup
+  if (!user) {
+    return <LandingPage />;
+  }
 
-  const role = authRole || profile?.role || 'operator';
+  // Logged in — redirect citizen to /citizen, others to /admin
+  const role = authRole || profile?.role || 'citizen';
+  if (isCitizen) {
+    // Citizen portal — show citizen-specific UI
+    if (role === 'citizen' || role === 'admin' || role === 'operator') {
+      return (
+        <Suspense fallback={<div style={{ padding: 40, textAlign: 'center', color: '#94A3B8' }}>Loading...</div>}>
+          <div className="app-layout">
+            <header className="app-header">
+              <div className="logo">
+                <div className="logo-mark">L</div>
+                <span className="logo-text">LocaTS</span>
+                <span className="logo-sub">Citizen Portal</span>
+              </div>
+              <div className="header-right">
+                <span style={{ fontSize: 12, color: '#6B7280' }}>Welcome, {profile?.full_name || user.email}</span>
+                <span className="badge badge-warn">citizen</span>
+                <button className="btn btn-sm btn-secondary" onClick={() => { logout(); window.location.href = '/'; }}>Sign Out</button>
+              </div>
+            </header>
+            <CitizenPortal />
+          </div>
+        </Suspense>
+      );
+    }
+    // Admin/operator on /citizen — redirect to admin
+    window.location.href = '/admin';
+    return null;
+  }
+
+  // Not on citizen or audit path — must be admin/operator path
+  if (!isAdmin) {
+    // Redirect based on role
+    if (role === 'citizen') {
+      window.location.href = '/citizen';
+      return null;
+    }
+    window.location.href = '/admin';
+    return null;
+  }
+
+  // Admin/operator portal — auth required (role already defined above)
   const filteredNav = NAV_ITEMS.filter(item => item.roles.includes(role));
   const Icon = ({ path, size = 18 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d={path} /></svg>;
 
