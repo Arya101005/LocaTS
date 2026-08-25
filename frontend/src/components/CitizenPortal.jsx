@@ -75,6 +75,8 @@ export default function CitizenPortal({ user, profile, onLogout }) {
   const [familyQuery, setFamilyQuery] = useState('');
   const [familyResults, setFamilyResults] = useState(null);
   const [helpSent, setHelpSent] = useState(false);
+  const [helpConfirm, setHelpConfirm] = useState(false);
+  const [helpSending, setHelpSending] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState(null);
 
@@ -128,17 +130,27 @@ export default function CitizenPortal({ user, profile, onLogout }) {
   }, [villages]);
 
   const sendHelp = useCallback(async () => {
-    if (helpSent || !selectedVillage) return;
+    if (helpSent || !selectedVillage || helpSending) return;
+    setHelpSending(true);
     try {
+      const village = villages.find(v => v.id === selectedVillage);
       await fetch(`${API}/citizen/report`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reporter_id: `citizen-${Date.now()}`, hazard_type: 'flood', severity_estimate: 0.5, description: 'Help request', lat: 30.40, lon: 79.33 }),
+        body: JSON.stringify({
+          reporter_id: `citizen-${Date.now()}`,
+          hazard_type: 'flood',
+          severity_estimate: 0.5,
+          description: `SOS help request from ${village?.name || 'unknown village'}`,
+          lat: 30.40, lon: 79.33,
+        }),
       });
       setHelpSent(true);
+      setHelpConfirm(false);
       setTimeout(() => setHelpSent(false), 300000);
     } catch (e) {}
-  }, [selectedVillage, helpSent]);
+    finally { setHelpSending(false); }
+  }, [selectedVillage, helpSent, helpSending, villages]);
 
   const submitReport = useCallback(async (type) => {
     try {
@@ -269,9 +281,9 @@ export default function CitizenPortal({ user, profile, onLogout }) {
 
                 {/* Quick Action Buttons */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
-                  <button onClick={sendHelp} disabled={helpSent}
+                  <button onClick={() => { if (!helpSent) setHelpConfirm(true); }} disabled={helpSent}
                     style={{ padding: '14px 12px', borderRadius: 12, border: 'none', background: helpSent ? '#D1D5DB' : 'linear-gradient(135deg, #DC2626, #B91C1C)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: helpSent ? 'default' : 'pointer', boxShadow: helpSent ? 'none' : '0 2px 8px rgba(220,38,38,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                    {helpSent ? 'Sent' : t.helpButton}
+                    {helpSent ? 'SOS Sent - Help On Way' : t.helpButton}
                   </button>
                   <button onClick={() => { setActiveTab('report'); setShowReport(true); }}
                     style={{ padding: '14px 12px', borderRadius: 12, border: '1px solid #D1D5DB', background: '#fff', color: '#374151', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
@@ -370,6 +382,43 @@ export default function CitizenPortal({ user, profile, onLogout }) {
           </div>
         )}
       </div>
+
+      {/* SOS Confirmation Dialog */}
+      {helpConfirm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 24, maxWidth: 340, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+            <div style={{ textAlign: 'center', marginBottom: 16 }}>
+              <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#FEF2F2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+              </div>
+              <div style={{ fontSize: 17, fontWeight: 800, color: '#111827', marginBottom: 4 }}>Send SOS Help Request?</div>
+              <div style={{ fontSize: 12, color: '#6B7280', lineHeight: 1.5 }}>
+                Emergency services and nearby shelters will be notified immediately.
+              </div>
+            </div>
+            {villageStatus?.nearest_shelter && (
+              <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10, padding: 12, marginBottom: 16 }}>
+                <div style={{ fontSize: 11, color: '#16A34A', fontWeight: 600, marginBottom: 4 }}>Nearest shelter to go to:</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#166534' }}>{villageStatus.nearest_shelter.name}</div>
+                <div style={{ fontSize: 11, color: '#6B7280' }}>{villageStatus.nearest_shelter.distance_km} km away | {villageStatus.nearest_shelter.beds_available} beds free</div>
+              </div>
+            )}
+            <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 10, padding: 12, marginBottom: 16 }}>
+              <div style={{ fontSize: 11, color: '#92400E', lineHeight: 1.5 }}>
+                While waiting, stay away from water bodies and follow marked evacuation routes. Dial 1070 for emergency.
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setHelpConfirm(false)}
+                style={{ flex: 1, padding: '11px 0', borderRadius: 10, border: '1px solid #D1D5DB', background: '#fff', color: '#374151', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={sendHelp} disabled={helpSending}
+                style={{ flex: 1, padding: '11px 0', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #DC2626, #B91C1C)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: helpSending ? 'wait' : 'pointer', boxShadow: '0 2px 8px rgba(220,38,38,0.3)' }}>
+                {helpSending ? 'Sending...' : 'Send SOS'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bottom Navigation */}
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#fff', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-around', padding: '8px 0', paddingBottom: 'max(8px, env(safe-area-inset-bottom))', zIndex: 100 }}>
