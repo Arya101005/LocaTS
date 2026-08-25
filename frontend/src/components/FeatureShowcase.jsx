@@ -14,7 +14,7 @@ const CATEGORIES = [
     ],
   },
   {
-    key: 'citizen_services', label: 'Citizen Services', icon: '👥',
+    key: 'citizen_services', label: 'Citizen Services', icon: 'CS',
     gradient: 'linear-gradient(135deg, #2563EB, #1D4ED8)',
     features: [
       { name: 'Citizen Portal', detail: 'No-login public portal with village-specific alerts', status: 'production' },
@@ -47,7 +47,7 @@ const CATEGORIES = [
     ],
   },
   {
-    key: 'visualization', label: 'Visualization', icon: '🗺️',
+    key: 'visualization', label: 'Visualization', icon: 'VZ',
     gradient: 'linear-gradient(135deg, #EA580C, #C2410C)',
     features: [
       { name: 'Interactive Map', detail: 'Leaflet + CartoDB Voyager with all layers' },
@@ -62,15 +62,15 @@ const CATEGORIES = [
 
 const TECH_STACK = [
   { label: 'Frontend', value: 'React + MapLibre + Vite', icon: '🖥️', bg: '#EFF6FF' },
-  { label: 'Backend', value: 'FastAPI + OR-Tools', icon: '⚡', bg: '#F0FDF4' },
+  { label: 'Backend', value: 'FastAPI + OR-Tools', icon: 'BE', bg: '#F0FDF4' },
   { label: 'Database', value: 'Supabase (PostgreSQL)', icon: '💾', bg: '#F5F3FF' },
   { label: 'Auth', value: 'Supabase JWT + RBAC', icon: '🔐', bg: '#FFF7ED' },
   { label: 'Weather', value: 'Open-Meteo (live)', icon: '🌦️', bg: '#ECFDF5' },
   { label: 'Satellite', value: 'Copernicus Sentinel-2', icon: '🛰️', bg: '#F0FDFA' },
-  { label: 'Voice/SMS', value: 'Twilio (Hindi + English)', icon: '📞', bg: '#FEF2F2' },
+  { label: 'Voice/SMS', value: 'Twilio (Hindi + English)', icon: 'VS', bg: '#FEF2F2' },
   { label: 'PWA', value: 'Service Worker + IDB', icon: '📱', bg: '#FFFBEB' },
-  { label: 'OGC', value: 'WFS 2.0 / WMS 1.3', icon: '🌐', bg: '#F0F9FF' },
-  { label: 'ML', value: 'WorldPop + Sentinel-2', icon: '🤖', bg: '#FDF4FF' },
+  { label: 'OGC', value: 'WFS 2.0 / WMS 1.3', icon: 'OG', bg: '#F0F9FF' },
+  { label: 'ML', value: 'WorldPop + Sentinel-2', icon: 'ML', bg: '#FDF4FF' },
 ];
 
 export default function FeatureShowcase() {

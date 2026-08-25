@@ -96,24 +96,46 @@ export default function Dashboard({ data, onOptimize, onReOptimize, optimizing }
     mapInstance.current = map;
   }, []);
 
-  // Auto-detect loaded data
+  // Auto-detect loaded data — fetch once, then cache
   useEffect(() => {
-    const poll = async () => {
+    let mounted = true;
+    const loadData = async () => {
+      // Try cached data first
+      try {
+        const dashRes = await fetch(`${API}/dashboard`);
+        const dashData = await dashRes.json();
+        const shelters = dashData.capacity_summary?.active_shelters || 0;
+        if (shelters > 0 || dashData.hazard_zones?.length > 0 || dashData.latest_result != null) {
+          if (mounted) {
+            setDataReady(true);
+            setLoadingMsg(`${dashData.hazard_zones?.length || 0} hazard zones | ${shelters} shelters`);
+          }
+          try {
+            const nr = await fetch(`${API}/capacity/names`);
+            if (nr.ok && mounted) {
+              const nd = await nr.json();
+              setNameMap(nd.names || {});
+            }
+          } catch(e) {}
+          return;
+        }
+      } catch(e) {}
+      // Poll if not loaded yet (max 30s)
       let attempts = 0;
-      const maxAttempts = 60;
       const interval = setInterval(async () => {
         attempts++;
         try {
           const dashRes = await fetch(`${API}/dashboard`);
           const dashData = await dashRes.json();
           const shelters = dashData.capacity_summary?.active_shelters || 0;
-          const hasData = shelters > 0 || dashData.hazard_zones?.length > 0 || dashData.latest_result != null;
-          if (hasData) {
-            setDataReady(true);
-            setLoadingMsg(`${dashData.hazard_zones?.length || 0} hazard zones | ${shelters || 18} shelters`);
+          if (shelters > 0 || dashData.hazard_zones?.length > 0) {
+            if (mounted) {
+              setDataReady(true);
+              setLoadingMsg(`${dashData.hazard_zones?.length || 0} hazard zones | ${shelters} shelters`);
+            }
             try {
               const nr = await fetch(`${API}/capacity/names`);
-              if (nr.ok) {
+              if (nr.ok && mounted) {
                 const nd = await nr.json();
                 setNameMap(nd.names || {});
               }
@@ -121,19 +143,17 @@ export default function Dashboard({ data, onOptimize, onReOptimize, optimizing }
             clearInterval(interval);
             return;
           }
-          if (attempts >= maxAttempts) {
-            setLoadingMsg('Data load timeout. Try refreshing.');
+          if (attempts >= 15) {
+            if (mounted) setLoadingMsg('Data load timeout.');
             clearInterval(interval);
-            return;
           }
-          setLoadingMsg(`Waiting for data... (${attempts}/${maxAttempts})`);
         } catch (e) {
-          setLoadingMsg('Connecting to backend...');
+          if (mounted) setLoadingMsg('Connecting...');
         }
       }, 2000);
-      return () => clearInterval(interval);
     };
-    poll();
+    loadData();
+    return () => { mounted = false; };
   }, []);
 
   // Fetch social vulnerability data
@@ -322,17 +342,16 @@ export default function Dashboard({ data, onOptimize, onReOptimize, optimizing }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* === OVERVIEW SUMMARY BAR === */}
-      <div style={{ background: '#fff', borderBottom: '1px solid var(--border)', padding: '14px 24px', display: 'flex', gap: 16, alignItems: 'center', flexShrink: 0 }}>
-        {[
-          { icon: '🏘', label: 'Total Habitants', value: totalHabitations.toLocaleString(), color: '#172B4D' },
-          { icon: '⚠️', label: 'At Risk', value: `${atRiskCount} (${atRiskCount > 0 ? ((atRiskCount / Math.max(totalHabitations, 1)) * 100).toFixed(1) : '0'}%)`, color: '#DC2626' },
-          { icon: '👥', label: 'People at Risk', value: peopleAtRisk.toLocaleString(), color: '#EA580C' },
-          { icon: '🔴', label: 'Red Zone Habitations', value: redZoneCount.toLocaleString(), color: '#DC2626' },
-          { icon: '🏥', label: 'Safe Sites', value: safeSites.toLocaleString(), color: '#16A34A' },
-          { icon: '🚚', label: 'People to Relocate', value: peopleToRelocate.toLocaleString(), color: '#2563EB' },
-        ].map((s, i) => (
-          <div key={i} className="animate-fade-in-up" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: `${s.color}08`, borderRadius: 10, border: `1px solid ${s.color}15` }}>
-            <div style={{ fontSize: 20 }}>{s.icon}</div>
+      <div style={{ background: '#fff', borderBottom: '1px solid var(--border)', padding: '14px 24px', display: 'flex', gap: 16, alignItems: 'center', flexShrink: 0 }}>          {[
+            { icon: 'H', label: 'Total Habitants', value: totalHabitations.toLocaleString(), color: '#172B4D' },
+            { icon: '!', label: 'At Risk', value: `${atRiskCount} (${atRiskCount > 0 ? ((atRiskCount / Math.max(totalHabitations, 1)) * 100).toFixed(1) : '0'}%)`, color: '#DC2626' },
+            { icon: 'P', label: 'People at Risk', value: peopleAtRisk.toLocaleString(), color: '#EA580C' },
+            { icon: 'R', label: 'Red Zone Habitations', value: redZoneCount.toLocaleString(), color: '#DC2626' },
+            { icon: 'S', label: 'Safe Sites', value: safeSites.toLocaleString(), color: '#16A34A' },
+            { icon: 'E', label: 'People to Relocate', value: peopleToRelocate.toLocaleString(), color: '#2563EB' },
+          ].map((s, i) => (
+            <div key={i} className="animate-fade-in-up" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: `${s.color}08`, borderRadius: 10, border: `1px solid ${s.color}15`, transition: 'transform 0.2s, box-shadow 0.2s' }} onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = `0 4px 12px ${s.color}15`; }} onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = ''; }}>
+              <div style={{ width: 32, height: 32, borderRadius: 8, background: `${s.color}12`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: s.color }}>{s.icon}</div>
             <div>
               <div style={{ fontSize: 18, fontWeight: 800, color: s.color, fontFamily: 'var(--mono)', letterSpacing: -0.5 }}>{s.value}</div>
               <div style={{ fontSize: 10, color: '#94A3B8', fontWeight: 500 }}>{s.label}</div>
@@ -571,8 +590,7 @@ export default function Dashboard({ data, onOptimize, onReOptimize, optimizing }
                   </div>
                 </div>
               ) : (
-                <div className="card" style={{ padding: 14, borderColor: 'rgba(220,38,38,0.2)', background: '#FEF2F2', marginBottom: 12 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: '#DC2626', marginBottom: 4 }}>⚠️ Capacity Shortfall</div>
+                <div className="card" style={{ padding: 14, borderColor: 'rgba(220,38,38,0.2)', background: '#FEF2F2', marginBottom: 12 }}>                   <div style={{ fontSize: 13, fontWeight: 700, color: '#DC2626', marginBottom: 4 }}>Capacity Shortfall</div>
                   <div style={{ fontSize: 11, color: '#7F1D1D', lineHeight: 1.6 }}>
                     {result.total_people_unmet.toLocaleString()} people unassigned. Activate nearby district shelters.
                   </div>
@@ -626,8 +644,7 @@ export default function Dashboard({ data, onOptimize, onReOptimize, optimizing }
 
               {/* Disconnected habitations */}
               {result.disconnected_habitations?.length > 0 && (
-                <div className="card" style={{ borderColor: 'rgba(220,38,38,0.2)', background: '#FEF2F2', marginTop: 12 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#DC2626', marginBottom: 6 }}>🚁 Boat/Air Evacuation Required</div>
+                <div className="card" style={{ borderColor: 'rgba(220,38,38,0.2)', background: '#FEF2F2', marginTop: 12 }}>                   <div style={{ fontSize: 12, fontWeight: 700, color: '#DC2626', marginBottom: 6 }}>Boat/Air Evacuation Required</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                     {result.disconnected_habitations.map(id => (
                       <span key={id} className="badge badge-danger">{getHabName(id)}</span>
@@ -638,8 +655,7 @@ export default function Dashboard({ data, onOptimize, onReOptimize, optimizing }
 
               {/* Nearby District Overflow */}
               {nearbyData && nearbyData.nearby_shelters?.length > 0 && (
-                <div className="card" style={{ marginTop: 12, borderColor: 'rgba(139,92,246,0.2)', background: '#F5F3FF' }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#8B5CF6', marginBottom: 8 }}>⚡ Nearby District Capacity</div>
+                <div className="card" style={{ marginTop: 12, borderColor: 'rgba(139,92,246,0.2)', background: '#F5F3FF' }}>                   <div style={{ fontSize: 12, fontWeight: 700, color: '#8B5CF6', marginBottom: 8 }}>Nearby District Capacity</div>
                   <div style={{ fontSize: 11, color: '#6D28D9', marginBottom: 8, lineHeight: 1.5 }}>{nearbyData.recommendation}</div>
                   <button className="btn btn-primary btn-block" onClick={runExpanded} disabled={loadingExpanded} style={{ fontSize: 12 }}>
                     {loadingExpanded ? 'Expanding...' : 'Expand to Nearby Districts'}

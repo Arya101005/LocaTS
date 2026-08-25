@@ -427,13 +427,12 @@ function AppContent() {
     try { const res = await fetch(`${API}/dashboard`); if (!res.ok) throw new Error(`HTTP ${res.status}`); setDashboardData(await res.json()); setError(null); } catch (err) { setError(err.message); }
   }, []);
 
-  // SSE live updates
+  // SSE live updates — only set status, don't re-fetch dashboard on every update
   const { connected: sseConnected, lastUpdate: sseLastUpdate, reconnecting } = useSSE(
     '/api/sse/stream',
     useCallback((data) => {
       setLiveStatus(data);
-      fetchDashboard();
-    }, [fetchDashboard])
+    }, [])
   );
 
   const triggerOptimization = useCallback(async () => {

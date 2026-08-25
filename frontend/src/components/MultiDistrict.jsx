@@ -100,8 +100,7 @@ export default function MultiDistrict() {
               flexWrap: 'wrap', gap: '8px',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '18px' }}>
-                  {c.status === 'open' ? '🟢' : '🔴'}
+                <span style={{ fontSize: '18px' }}>                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.status === 'open' ? '#22C55E' : '#DC2626', display: 'inline-block' }} />
                 </span>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: '14px', color: '#111827' }}>

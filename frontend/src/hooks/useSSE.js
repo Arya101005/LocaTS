@@ -49,8 +49,10 @@ export function useSSE(url = '/api/sse/stream', onUpdate) {
           const data = JSON.parse(event.data);
           if (data.type === 'update') {
             setLastUpdate(new Date());
+            // Only call onUpdate if data actually changed
             onUpdateRef.current?.(data.data);
           }
+          // heartbeat — just confirms connection alive, ignore
         } catch (e) {}
       };
 
