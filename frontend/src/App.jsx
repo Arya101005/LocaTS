@@ -54,17 +54,14 @@ function LandingPage() {
         window.location.href = isAdminEmail ? '/admin' : '/citizen';
       } else {
         const res = await signup(email, password, name);
-        if (res.status === 'signup_complete' && res.access_token) {
-          const isAdminEmail = email.toLowerCase() === 'pranavarya2005@gmail.com';
-          window.location.href = isAdminEmail ? '/admin' : '/citizen';
-        } else if (res.needs_verification) {
-          setSuccess('Account created! You can now sign in. Try signing in now.');
-          setMode('login');
-        } else if (res.error) {
+        if (res.error) {
           setError(res.error);
         } else {
-          setSuccess('Account created! Switching to sign in...');
+          setSuccess('Account created successfully! Please sign in.');
           setMode('login');
+          setEmail('');
+          setPassword('');
+          setName('');
         }
       }
     } catch (err) { setError(err.message); }
