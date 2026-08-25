@@ -2,9 +2,6 @@
 LocaTS API — Entry Point
 ========================
 FastAPI application setup, startup data loading, and router registration.
-
-All endpoint logic lives in backend.app.api.routers.* modules.
-This file is intentionally kept thin (~200 lines) for maintainability.
 """
 
 from __future__ import annotations
@@ -17,10 +14,7 @@ from typing import Optional
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.app.api.state import (
-    graph_data, graph_builder, optimizer, shortest_paths,
-    static_zones, sensor_readings, hazard_confidences,
-)
+import backend.app.api.state as st
 from backend.app.models.domain import (
     CapacityGraph, HabitationCluster, RoadSegment, Shelter,
     StaticHazardZone, HazardType, LiveSensorReading,
@@ -29,39 +23,18 @@ from backend.app.capacity.graph_builder import CapacityGraphBuilder
 from backend.app.optimizer.optimizer import OptimizationEngine
 from backend.app.data.persistence import persistence
 
-# ---------------------------------------------------------------------------
-# App Setup
-# ---------------------------------------------------------------------------
+app = FastAPI(title="LocaTS API", version="2.0.0")
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True,
+                   allow_methods=["*"], allow_headers=["*"])
 
-app = FastAPI(
-    title="LocaTS API",
-    description="Intelligent Hazard Identification & Optimized Relocation Planning — SIH26191",
-    version="2.0.0",
-)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"], allow_credentials=True,
-    allow_methods=["*"], allow_headers=["*"],
-)
-
-
-# ---------------------------------------------------------------------------
-# Startup: Load Chamoli District Data
-# ---------------------------------------------------------------------------
 
 def _auto_load_data():
-    """Auto-load real data on startup. Tries cache first, then built-in dataset."""
-    import backend.app.api.state as st
-
     cache_file = Path(__file__).parent.parent.parent.parent / "frontend" / "public" / "data" / "auto_cache.json"
-
-    # Try disk cache (fast restart within 24h)
     if cache_file.exists():
         try:
             cache = json_mod.loads(cache_file.read_text(encoding="utf-8"))
             if (time.time() - cache.get("_cached_at", 0)) / 3600 < 24:
-                print(f"  [AutoLoad] Cache hit ({(time.time() - cache['_cached_at'])/3600:.1f}h old)")
+                print("  [AutoLoad] Cache hit")
                 st.graph_data = CapacityGraph(
                     habitations=[HabitationCluster(**h) for h in cache["habitations"]],
                     shelters=[Shelter(**s) for s in cache["shelters"]],
@@ -81,7 +54,6 @@ def _auto_load_data():
         except Exception as e:
             print(f"  [AutoLoad] Cache failed: {e}")
 
-    # Load built-in Chamoli dataset
     print("  [AutoLoad] Loading Chamoli district dataset...")
     try:
         from backend.app.data.chamoli_dataset import load_chamoli_dataset
@@ -90,10 +62,8 @@ def _auto_load_data():
         st.static_zones.extend(zones)
         st.sensor_readings.extend(sensors)
         _rebuild_graph()
-        print(f"  [AutoLoad] Done: {len(st.graph_data.habitations)} habs, "
-              f"{len(st.graph_data.shelters)} shelters, {len(st.graph_data.road_segments)} roads")
-        print(f"  [AutoLoad] Beds: {sum(s.bed_capacity for s in st.graph_data.shelters):,} | "
-              f"Population: {sum(h.population_estimate for h in st.graph_data.habitations):,}")
+        print(f"  [AutoLoad] Done: {len(st.graph_data.habitations)} habs, {len(st.graph_data.shelters)} shelters")
+        print(f"  [AutoLoad] Beds: {sum(s.bed_capacity for s in st.graph_data.shelters):,} | Pop: {sum(h.population_estimate for h in st.graph_data.habitations):,}")
         if persistence.is_configured:
             try:
                 stats = persistence.seed_from_graph(st.graph_data, st.static_zones, st.sensor_readings)
@@ -106,8 +76,6 @@ def _auto_load_data():
 
 
 def _rebuild_graph():
-    """Rebuild graph, optimizer, and shortest paths from current state."""
-    import backend.app.api.state as st
     st.graph_builder = CapacityGraphBuilder(population_safety_margin=0.15)
     st.graph_data = st.graph_builder.build(st.graph_data)
     st.optimizer = OptimizationEngine(time_budget_seconds=30.0)
@@ -120,40 +88,26 @@ async def startup_event():
     print("  LocaTS starting...")
     try:
         _auto_load_data()
-        print("  Server ready — all data loaded")
+        print("  Server ready")
     except Exception as e:
         print(f"  Startup failed: {e}")
         import traceback; traceback.print_exc()
     print("=" * 60)
 
 
-# ---------------------------------------------------------------------------
-# Health Check
-# ---------------------------------------------------------------------------
-
 @app.get("/health")
 async def health():
-    return {
-        "status": "ok", "version": "2.0.0",
-        "solver": "OR-Tools MinCostFlow",
-        "layers": {
-            "hazard_fusion": "operational",
-            "capacity_graph": "operational" if graph_data else "not_loaded",
-            "optimizer": "operational" if optimizer else "not_initialized",
-        },
-    }
+    return {"status": "ok", "version": "2.0.0",
+            "layers": {"hazard_fusion": "operational",
+                       "capacity_graph": "operational" if st.graph_data else "not_loaded",
+                       "optimizer": "operational" if st.optimizer else "not_initialized"}}
 
-
-# ---------------------------------------------------------------------------
-# Register All Routers
-# ---------------------------------------------------------------------------
 
 from backend.app.api.routers import (
     hazard, capacity, optimizer as opt_router,
     dashboard, citizen, communication,
     satellite_rainfall, ai_and_data,
 )
-
 app.include_router(hazard.router)
 app.include_router(capacity.router)
 app.include_router(opt_router.router)
@@ -163,7 +117,6 @@ app.include_router(communication.router)
 app.include_router(satellite_rainfall.router)
 app.include_router(ai_and_data.router)
 
-# Auth routes (Supabase)
 try:
     from backend.app.utils.auth import create_auth_routes
     create_auth_routes(app)

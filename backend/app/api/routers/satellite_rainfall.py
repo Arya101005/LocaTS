@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-from backend.app.api.state import graph_data
+import backend.app.api.state as st
 
 router = APIRouter(tags=["satellite"])
 

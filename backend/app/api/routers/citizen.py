@@ -23,9 +23,7 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from backend.app.api.state import (
-    graph_data, hazard_confidences, crowd_reports, haversine,
-)
+import backend.app.api.state as st
 from backend.app.models.domain import (
     CrowdReport, EvacueeRegistration, FamilySearch,
     EvacueeStatusUpdate, HazardType,
@@ -42,14 +40,14 @@ _evacuees: list = []
 @router.get("/api/citizen/status/{village_id}")
 async def citizen_village_status(village_id: str):
     """Public: shows hazard status for a specific village."""
-    if not graph_data:
+    if not st.graph_data:
         raise HTTPException(503, "System data not loaded.")
-    hab = graph_data.get_habitation_by_id(village_id)
+    hab = st.graph_data.get_habitation_by_id(village_id)
     if not hab:
         raise HTTPException(404, "Village not found.")
 
     hazard_level, hazard_detail = "normal", "No active hazard warnings."
-    for key, conf in hazard_confidences.items():
+    for key, conf in st.hazard_confidences.items():
         if key.startswith(village_id + ":"):
             if conf.alert_level.value in ("evacuate", "relocate"):
                 hazard_level, hazard_detail = "critical", f"{conf.hazard_type.value} risk. EVACUATE."
@@ -58,20 +56,17 @@ async def citizen_village_status(village_id: str):
                 hazard_level, hazard_detail = "warning", f"Advisory: elevated {conf.hazard_type.value} risk."
 
     nearest, n_dist = None, float("inf")
-    for s in graph_data.shelters:
+    for s in st.graph_data.shelters:
         if s.is_active:
-            d = haversine(hab.location, s.location)
+            d = st.haversine(hab.location, s.location)
             if d < n_dist:
                 n_dist, nearest = d, s
 
     assigned_name, assigned_dist = None, None
-    if graph_data.optimizer and graph_data.optimizer._last_result if hasattr(graph_data, "optimizer") else None:
-        pass
-    from backend.app.api.state import optimizer as opt
-    if opt and opt._last_result:
-        for a in opt._last_result.assignments:
+    if st.optimizer and st.optimizer._last_result:
+        for a in st.optimizer._last_result.assignments:
             if a.habitation_id == village_id:
-                s = graph_data.get_shelter_by_id(a.shelter_id)
+                s = st.graph_data.get_shelter_by_id(a.shelter_id)
                 assigned_name, assigned_dist = s.name if s else a.shelter_id, a.distance_km
                 break
 
@@ -95,12 +90,12 @@ async def citizen_village_status(village_id: str):
 @router.get("/api/citizen/villages")
 async def citizen_village_list():
     """Public: list all villages with current hazard status."""
-    if not graph_data:
+    if not st.graph_data:
         raise HTTPException(503, "System data not loaded.")
     villages = []
-    for h in graph_data.habitations:
+    for h in st.graph_data.habitations:
         level = "normal"
-        for key, conf in hazard_confidences.items():
+        for key, conf in st.hazard_confidences.items():
             if key.startswith(h.id + ":"):
                 if conf.alert_level.value in ("evacuate", "relocate"):
                     level = "critical"; break
@@ -115,9 +110,9 @@ async def citizen_village_list():
 async def citizen_crowd_report(report, request: Request):
     """Simplified citizen crowd report endpoint. Rate-limited per IP."""
     from backend.app.api.rate_limit import check_rate_limit
-    check_rate_limit(request, "citizen_report", max_requests=10, window_seconds=300)  # 10 per 5 min per IP
-    report_id = f"cr-{len(crowd_reports)+1:05d}"
-    crowd_reports.append(CrowdReport(
+    check_rate_limit(request, "citizen_report", max_requests=10, window_seconds=300)
+    report_id = f"cr-{len(st.crowd_reports)+1:05d}"
+    st.crowd_reports.append(CrowdReport(
         id=report_id, reporter_id=report.reporter_id,
         hazard_type=report.hazard_type, severity_estimate=report.severity_estimate,
         description=report.description,
@@ -130,10 +125,10 @@ async def citizen_crowd_report(report, request: Request):
 @router.get("/api/citizen/shelters")
 async def citizen_shelters():
     """Public: list shelters with live capacity (no GPS)."""
-    if not graph_data:
+    if not st.graph_data:
         raise HTTPException(503, "System data not loaded.")
     shelters = []
-    for s in graph_data.shelters:
+    for s in st.graph_data.shelters:
         if not s.is_active:
             continue
         avail = s.bed_capacity - s.beds_occupied
@@ -163,12 +158,11 @@ async def register_evacuee(evacuee: EvacueeRegistration):
 @router.post("/api/family/search")
 async def search_family(search: FamilySearch):
     """Search for a family member across all shelters.
-    
+
     PRIVACY: Name alone is not sufficient. At least one secondary identifier
     (home_habitation_id or age_range) is required to return results.
     This prevents location tracking by name-only queries.
     """
-    # Require at least one secondary identifier for privacy
     if not search.home_habitation_id and not search.age_range:
         return {
             "results": [],
@@ -182,8 +176,8 @@ async def search_family(search: FamilySearch):
                 and (not search.home_habitation_id or ev.home_habitation_id == search.home_habitation_id)
                 and (not search.age_range or ev.age_range == search.age_range)):
             s_name = ""
-            if graph_data:
-                s = graph_data.get_shelter_by_id(ev.registered_shelter_id)
+            if st.graph_data:
+                s = st.graph_data.get_shelter_by_id(ev.registered_shelter_id)
                 if s:
                     s_name = s.name
             results.append({"evacuee_id": ev.evacuee_id, "shelter_id": ev.registered_shelter_id,

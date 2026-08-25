@@ -19,11 +19,7 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from backend.app.api.state import (
-    graph_data, graph_builder, shortest_paths, optimizer,
-    static_zones, sensor_readings, crowd_reports,
-    hazard_confidences, relocation_orders, haversine,
-)
+import backend.app.api.state as st
 from backend.app.models.domain import (
     AlertLevel, RelocationOrder, RoadStatus,
     CapacityGraph, HazardType,
@@ -56,7 +52,7 @@ class WhatIfScenario(BaseModel):
 def _build_urgency_weights() -> tuple[dict, dict]:
     """Extract urgency weights and hazard scores from current confidences."""
     urgency, scores = {}, {}
-    for key, conf in hazard_confidences.items():
+    for key, conf in st.hazard_confidences.items():
         hid = key.split(":")[0]
         if conf.alert_level in (AlertLevel.EVACUATE, AlertLevel.RELOCATE):
             urgency[hid] = max(urgency.get(hid, 1.0), 1.0 + conf.confidence * 2.0)
@@ -69,34 +65,32 @@ def _build_urgency_weights() -> tuple[dict, dict]:
 @router.post("/api/optimize/solve")
 async def solve_relocation(req: SolveRequest):
     """Solve the full relocation optimization problem."""
-    if not graph_data or not optimizer:
+    if not st.graph_data or not st.optimizer:
         raise HTTPException(400, "Graph and optimizer must be loaded first.")
-    import backend.app.api.state as st
     if st.graph_builder:
         st.shortest_paths = st.graph_builder.compute_shortest_paths(st.graph_data)
     urgency, scores = _build_urgency_weights()
-    optimizer.time_budget_seconds = req.time_budget_seconds
-    result = optimizer.solve(graph_data, st.shortest_paths, urgency, scores)
+    st.optimizer.time_budget_seconds = req.time_budget_seconds
+    result = st.optimizer.solve(st.graph_data, st.shortest_paths, urgency, scores)
     return result.model_dump()
 
 
 @router.post("/api/optimize/re-solve")
 async def re_solve_relocation(req: ReOptimizeRequest):
     """Rolling-horizon re-optimization with audit trail (edge 5.5)."""
-    if not graph_data or not optimizer:
+    if not st.graph_data or not st.optimizer:
         raise HTTPException(400, "Graph and optimizer must be loaded first.")
-    import backend.app.api.state as st
     if st.graph_builder:
         st.shortest_paths = st.graph_builder.compute_shortest_paths(st.graph_data)
     urgency, scores = _build_urgency_weights()
-    optimizer.time_budget_seconds = req.time_budget_seconds
-    result = optimizer.re_optimize(graph_data, st.shortest_paths, urgency, scores)
+    st.optimizer.time_budget_seconds = req.time_budget_seconds
+    result = st.optimizer.re_optimize(st.graph_data, st.shortest_paths, urgency, scores)
 
     order = RelocationOrder(order_id=f"order-{result.run_id}", result=result, issued_by="api")
     order.audit_hash = order.compute_hash()
-    if relocation_orders:
-        order.hash_chain_previous = relocation_orders[-1].audit_hash
-    relocation_orders.append(order)
+    if st.relocation_orders:
+        order.hash_chain_previous = st.relocation_orders[-1].audit_hash
+    st.relocation_orders.append(order)
 
     return {"result": result.model_dump(), "order": {
         "order_id": order.order_id, "audit_hash": order.audit_hash,
@@ -108,28 +102,27 @@ async def re_solve_relocation(req: ReOptimizeRequest):
 @router.post("/api/optimize/expanded")
 async def solve_expanded():
     """Re-solve with nearby district shelters included."""
-    if not graph_data or not optimizer:
+    if not st.graph_data or not st.optimizer:
         raise HTTPException(400, "Graph and optimizer must be loaded first.")
-    import backend.app.api.state as st
-    for s in graph_data.shelters:
+    for s in st.graph_data.shelters:
         s.is_active = True
     if st.graph_builder:
         st.shortest_paths = st.graph_builder.compute_shortest_paths(st.graph_data)
     urgency, scores = _build_urgency_weights()
-    optimizer.time_budget_seconds = 30.0
-    result = optimizer.solve(graph_data, st.shortest_paths, urgency, scores)
+    st.optimizer.time_budget_seconds = 30.0
+    result = st.optimizer.solve(st.graph_data, st.shortest_paths, urgency, scores)
 
     inter_district = []
     for a in result.assignments:
-        shelter = graph_data.get_shelter_by_id(a.shelter_id)
-        hab = graph_data.get_habitation_by_id(a.habitation_id)
+        shelter = st.graph_data.get_shelter_by_id(a.shelter_id)
+        hab = st.graph_data.get_habitation_by_id(a.habitation_id)
         if shelter and hab and getattr(shelter, "district", "") != getattr(hab, "district", ""):
             inter_district.append({
                 "habitation": hab.name, "shelter": shelter.name,
                 "district": shelter.district, "people": a.people_assigned,
                 "distance_km": a.distance_km,
             })
-    total_cap = sum(s.bed_capacity for s in graph_data.shelters)
+    total_cap = sum(s.bed_capacity for s in st.graph_data.shelters)
     n = len(inter_district)
     msg = f"Expanded plan: {result.total_people_relocated:,} relocated."
     msg += f" {n} transfers to neighboring districts needed." if n else " All within Chamoli."
@@ -140,10 +133,10 @@ async def solve_expanded():
 @router.post("/api/whatif")
 async def run_whatif(scenario: WhatIfScenario):
     """Live what-if scenario: modify rainfall, block roads, disable shelters."""
-    if not graph_data or not optimizer:
+    if not st.graph_data or not st.optimizer:
         raise HTTPException(400, "Load graph and run initial optimization first.")
 
-    sim_graph = copy.deepcopy(graph_data)
+    sim_graph = copy.deepcopy(st.graph_data)
     if scenario.population_multiplier != 1.0:
         for h in sim_graph.habitations:
             h.population_estimate = int(h.population_estimate * scenario.population_multiplier)
@@ -160,7 +153,7 @@ async def run_whatif(scenario: WhatIfScenario):
     sim_paths = sim_builder.compute_shortest_paths(sim_graph)
 
     sim_sensors = []
-    for s in sensor_readings:
+    for s in st.sensor_readings:
         ms = s.model_copy()
         if ms.source == "imd_rainfall":
             ms.value *= scenario.rainfall_multiplier
@@ -173,8 +166,8 @@ async def run_whatif(scenario: WhatIfScenario):
             score = fuse_hazard_scores(
                 habitation_id=hab.id, habitation_location=hab.location,
                 hazard_type=htype,
-                static_zones=[z for z in static_zones if z.hazard_type == htype],
-                sensor_readings=sim_sensors, crowd_reports=crowd_reports, now=now,
+                static_zones=[z for z in st.static_zones if z.hazard_type == htype],
+                sensor_readings=sim_sensors, crowd_reports=st.crowd_reports, now=now,
             )
             sim_conf[f"{hab.id}:{htype.value}"] = score.confidence
 
@@ -192,16 +185,16 @@ async def run_whatif(scenario: WhatIfScenario):
 @router.get("/api/nearby-capacity")
 async def nearby_capacity():
     """Find nearby district shelters for overflow absorption."""
-    if not graph_data or not optimizer or not optimizer._last_result:
+    if not st.graph_data or not st.optimizer or not st.optimizer._last_result:
         raise HTTPException(400, "Run optimization first.")
-    result = optimizer._last_result
+    result = st.optimizer._last_result
     unmet = result.total_people_unmet
     if unmet <= 0:
         return {"message": "No unmet need.", "nearby_shelters": [], "total_nearby_beds": 0}
 
-    chamoli_ids = {s.id for s in graph_data.shelters if s.district == "Chamoli"}
+    chamoli_ids = {s.id for s in st.graph_data.shelters if s.district == "Chamoli"}
     nearby = []
-    for s in graph_data.shelters:
+    for s in st.graph_data.shelters:
         if s.id not in chamoli_ids and s.is_active:
             avail = s.bed_capacity - s.beds_occupied
             if avail > 0:
@@ -218,11 +211,11 @@ async def nearby_capacity():
 @router.get("/api/social-vulnerability")
 async def get_social_vulnerability():
     """Get social vulnerability index for all habitations."""
-    if not graph_data:
+    if not st.graph_data:
         raise HTTPException(400, "No graph loaded.")
     return {"habitations": [
         {"id": h.id, "name": h.name, "population": h.population_estimate,
          "vulnerability_index": h.social_vulnerability.vulnerability_index if h.social_vulnerability else 0,
          "evacuation_difficulty": h.social_vulnerability.evacuation_difficulty if h.social_vulnerability else "unknown"}
-        for h in graph_data.habitations
+        for h in st.graph_data.habitations
     ]}

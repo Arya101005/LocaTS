@@ -1,0 +1,29 @@
+# LocaTS Backend Dependencies
+# ==========================
+
+# Core
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.5.0
+
+# Data & Math
+numpy>=1.24.0
+networkx>=3.2
+ortools>=9.8
+shapely>=2.0.0
+
+# HTTP & API
+httpx>=0.25.0
+
+# Date & Logging
+python-dateutil>=2.8.0
+structlog>=23.2.0
+
+# Supabase (persistence)
+supabase>=2.0.0
+
+# PDF generation
+reportlab>=4.0.0
+
+# Environment
+python-dotenv>=1.0.0

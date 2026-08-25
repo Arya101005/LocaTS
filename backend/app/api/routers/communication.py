@@ -28,7 +28,7 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from backend.app.api.state import graph_data, crowd_reports, hazard_confidences
+import backend.app.api.state as st
 from backend.app.models.domain import CrowdReport, HazardType
 
 router = APIRouter(tags=["communication"])
@@ -51,7 +51,8 @@ IVR_FLOWS = {
     "hi": {
         "greeting": {"text": "LocaTS Aapat Seva. Khatre ki report ke liye 1. Niraasan ke liye 2. Parivar ke liye 3.",
                       "options": {"1": "report", "2": "evacuate", "3": "family"}},
-        "report": {"text": "Baadh ke liye 1, Bhoo-khalboli ke liye 2.", "options": {"1": "flood_report", "2": "landslide_report"}},
+        "report": {"text": "Baadh ke liye 1, Bhoo-khalboli ke liye 2.",
+                    "options": {"1": "flood_report", "2": "landslide_report"}},
         "flood_report": {"text": "Aapki baadh report darj ho gayi. Uunchi jagah par rahein.", "options": {}},
         "landslide_report": {"text": "Aapki bhoo-khalboli report darj ho gayi. Pahaad se door rahein.", "options": {}},
         "evacuate": {"text": "Nazdeeki shelter par jaayein. Nirdisht raaston par chalein.", "options": {}},
@@ -98,9 +99,7 @@ async def ivr_start(language: str = "en"):
 @router.post("/api/ivr/input")
 async def ivr_input(session_id: str, user_input: str):
     """Process user input in an IVR session."""
-    # Sessions are ephemeral; re-create flow state
     flow = IVR_FLOWS.get("en", IVR_FLOWS["en"])
-    # Simple stateless lookup — find the step matching input
     for step_name, step in flow.items():
         if user_input in step.get("options", {}):
             next_step = flow.get(step["options"][user_input], {})
@@ -222,7 +221,7 @@ async def whatsapp_message(payload: dict):
         if msg in ("1", "flood"):
             return {"reply": "Flood report selected.\n1. Minor\n2. Moderate\n3. Severe", "new_session": {"step": "report_type", "data": {"hazard_type": "flood"}}}
         elif msg in ("2", "shelter"):
-            shelters = [f"{s.name}: {s.bed_capacity - s.beds_occupied} beds free" for s in (graph_data.shelters if graph_data else []) if s.is_active][:5]
+            shelters = [f"{s.name}: {s.bed_capacity - s.beds_occupied} beds free" for s in (st.graph_data.shelters if st.graph_data else []) if s.is_active][:5]
             return {"reply": "Nearby Shelters:\n" + "\n".join(f"{i+1}. {s}" for i, s in enumerate(shelters)), "new_session": session}
         elif msg in ("6", "help"):
             return {"reply": "EMERGENCY: Call 1070. Move to high ground if flooding.", "new_session": session}
@@ -231,8 +230,8 @@ async def whatsapp_message(payload: dict):
     elif step == "report_type":
         sev = {"1": 0.3, "2": 0.6, "3": 0.9}.get(msg, 0.5)
         ht = session.get("data", {}).get("hazard_type", "flood")
-        rid = f"wa-{len(crowd_reports)+1:05d}"
-        crowd_reports.append(CrowdReport(id=rid, reporter_id="whatsapp-bot", hazard_type=HazardType(ht),
+        rid = f"wa-{len(st.crowd_reports)+1:05d}"
+        st.crowd_reports.append(CrowdReport(id=rid, reporter_id="whatsapp-bot", hazard_type=HazardType(ht),
                                          severity_estimate=sev, description=f"WhatsApp: {ht}",
                                          location={"lat": 30.40, "lon": 79.33}, timestamp=datetime.utcnow()))
         return {"reply": f"Report submitted! ID: {rid}. Call 1070 if emergency.", "new_session": {"step": "main"}}

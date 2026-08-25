@@ -22,11 +22,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from backend.app.api.state import (
-    graph_data, graph_builder, optimizer, static_zones,
-    sensor_readings, crowd_reports, hazard_confidences,
-    relocation_orders, haversine,
-)
+import backend.app.api.state as st
 from backend.app.models.domain import AlertLevel
 
 router = APIRouter(tags=["ai-data"])
@@ -62,11 +58,9 @@ async def ai_chat(req: AIChatRequest):
 
 def _local_responder(query: str) -> str:
     """Rule-based fallback using live system data."""
-    result = optimizer._last_result if optimizer and optimizer._last_result else None
-    hab_count = len(graph_data.habitations) if graph_data else 0
-    shelter_count = len(graph_data.shelters) if graph_data else 0
-    total_beds = sum(s.bed_capacity for s in graph_data.shelters) if graph_data else 0
-    total_pop = sum(h.population_estimate for h in graph_data.habitations) if graph_data else 0
+    result = st.optimizer._last_result if st.optimizer and st.optimizer._last_result else None
+    shelter_count = len(st.graph_data.shelters) if st.graph_data else 0
+    total_beds = sum(s.bed_capacity for s in st.graph_data.shelters) if st.graph_data else 0
 
     if any(w in query for w in ("evacuati", "relocat", "plan", "status")):
         if result:
@@ -75,11 +69,11 @@ def _local_responder(query: str) -> str:
                     f"Shelters: {shelter_count} with {total_beds:,} beds | Solver: {result.solver_time_seconds}s")
         return f"No optimization yet. {shelter_count} shelters with {total_beds:,} beds ready."
     if any(w in query for w in ("shelter", "bed", "capacity")):
-        if graph_data:
-            lines = [f"{s.name}: {s.bed_capacity:,} beds ({s.bed_capacity - s.beds_occupied:,} free)" for s in graph_data.shelters[:8]]
+        if st.graph_data:
+            lines = [f"{s.name}: {s.bed_capacity:,} beds ({s.bed_capacity - s.beds_occupied:,} free)" for s in st.graph_data.shelters[:8]]
             return "Shelters:\n" + "\n".join(lines)
     if any(w in query for w in ("flood", "rain", "water")):
-        fz = [z for z in static_zones if z.hazard_type.value == "flood"]
+        fz = [z for z in st.static_zones if z.hazard_type.value == "flood"]
         return f"{len(fz)} flood zones. Severity: {min((z.severity for z in fz), default=0):.0%}-{max((z.severity for z in fz), default=0):.0%}."
     if any(w in query for w in ("how", "work", "system")):
         return "LocaTS: Hazard Fusion → Capacity Graph → OR-Tools Optimization → Evacuation Plan. Supports rolling-horizon re-planning."
@@ -91,15 +85,14 @@ def _local_responder(query: str) -> str:
 @router.get("/api/report/relocation-pdf")
 async def generate_relocation_report():
     """Generate PDF relocation order with audit hash."""
-    if not optimizer or not optimizer._last_result:
+    if not st.optimizer or not st.optimizer._last_result:
         raise HTTPException(400, "Run optimization first.")
-    result = optimizer._last_result
+    result = st.optimizer._last_result
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
     from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, HRFlowable
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.enums import TA_CENTER
-    from reportlab.lib.units import mm
 
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=40, bottomMargin=40)
@@ -122,8 +115,8 @@ async def generate_relocation_report():
                            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E5E7EB"))]))
     elements.append(t)
 
-    nm = {h.id: h.name for h in graph_data.habitations} if graph_data else {}
-    nm.update({s.id: s.name for s in graph_data.shelters} if graph_data else {})
+    nm = {h.id: h.name for h in st.graph_data.habitations} if st.graph_data else {}
+    nm.update({s.id: s.name for s in st.graph_data.shelters} if st.graph_data else {})
     rows = [["Village", "Shelter", "People", "Distance"]]
     for a in result.assignments:
         rows.append([nm.get(a.habitation_id, a.habitation_id), nm.get(a.shelter_id, a.shelter_id),
@@ -147,17 +140,17 @@ async def generate_relocation_report():
 @router.get("/api/evacuation-routes")
 async def evacuation_routes():
     """GeoJSON route lines from habitations to assigned shelters."""
-    if not optimizer or not optimizer._last_result:
+    if not st.optimizer or not st.optimizer._last_result:
         raise HTTPException(400, "Run optimization first.")
     urgency_w = {}
-    for key, conf in hazard_confidences.items():
+    for key, conf in st.hazard_confidences.items():
         hid = key.split(":")[0]
         if conf.alert_level in (AlertLevel.EVACUATE, AlertLevel.RELOCATE):
             urgency_w[hid] = max(urgency_w.get(hid, 1.0), 1.0 + conf.confidence * 2.0)
     features = []
-    for a in optimizer._last_result.assignments:
-        hab = graph_data.get_habitation_by_id(a.habitation_id) if graph_data else None
-        shelter = graph_data.get_shelter_by_id(a.shelter_id) if graph_data else None
+    for a in st.optimizer._last_result.assignments:
+        hab = st.graph_data.get_habitation_by_id(a.habitation_id) if st.graph_data else None
+        shelter = st.graph_data.get_shelter_by_id(a.shelter_id) if st.graph_data else None
         if not hab or not shelter:
             continue
         u = urgency_w.get(a.habitation_id, 1.0)
@@ -182,12 +175,12 @@ async def sse_stream():
         last = ""
         while True:
             try:
-                state = {"zones": len(static_zones), "reports": len(crowd_reports),
-                         "result_hash": str(hash(str(optimizer._last_result.model_dump()))) if optimizer and optimizer._last_result else "none"}
-                h = str(hash(str(state)))
+                state_data = {"zones": len(st.static_zones), "reports": len(st.crowd_reports),
+                         "result_hash": str(hash(str(st.optimizer._last_result.model_dump()))) if st.optimizer and st.optimizer._last_result else "none"}
+                h = str(hash(str(state_data)))
                 if h != last:
                     last = h
-                    yield f"data: {json.dumps({'type': 'update', 'data': state})}\n\n"
+                    yield f"data: {json.dumps({'type': 'update', 'data': state_data})}\n\n"
                 yield f"data: {json.dumps({'type': 'heartbeat'})}\n\n"
                 await asyncio.sleep(5)
             except asyncio.CancelledError:
@@ -203,22 +196,22 @@ async def sse_stream():
 @router.get("/api/data/live/{data_type}")
 async def serve_live_geojson(data_type: str):
     """Serve live GeoJSON from in-memory state."""
-    if not graph_data:
+    if not st.graph_data:
         raise HTTPException(400, "No graph loaded.")
     features = []
     if data_type == "habitations":
         features = [{"type": "Feature", "geometry": {"type": "Point", "coordinates": [h.location.lon, h.location.lat]},
                      "properties": {"id": h.id, "name": h.name, "population": h.population_estimate, "district": h.district}}
-                    for h in graph_data.habitations]
+                    for h in st.graph_data.habitations]
     elif data_type == "shelters":
         features = [{"type": "Feature", "geometry": {"type": "Point", "coordinates": [s.location.lon, s.location.lat]},
                      "properties": {"id": s.id, "name": s.name, "bed_capacity": s.bed_capacity,
                                     "beds_available": s.bed_capacity - s.beds_occupied, "is_active": s.is_active}}
-                    for s in graph_data.shelters]
+                    for s in st.graph_data.shelters]
     elif data_type == "roads":
-        for r in graph_data.road_segments[:5000]:
-            f = graph_data.get_habitation_by_id(r.from_node) or graph_data.get_shelter_by_id(r.from_node)
-            t = graph_data.get_habitation_by_id(r.to_node) or graph_data.get_shelter_by_id(r.to_node)
+        for r in st.graph_data.road_segments[:5000]:
+            f = st.graph_data.get_habitation_by_id(r.from_node) or st.graph_data.get_shelter_by_id(r.from_node)
+            t = st.graph_data.get_habitation_by_id(r.to_node) or st.graph_data.get_shelter_by_id(r.to_node)
             if f and t:
                 features.append({"type": "Feature",
                                  "geometry": {"type": "LineString", "coordinates": [[f.location.lon, f.location.lat], [t.location.lon, t.location.lat]]},
@@ -229,7 +222,7 @@ async def serve_live_geojson(data_type: str):
                                                                     z.center.lat if hasattr(z.center, "lat") else z.center.get("lat", 0)]},
                      "properties": {"id": z.id, "hazard_type": z.hazard_type.value, "severity": z.severity,
                                     "radius_km": z.radius_km}}
-                    for z in static_zones]
+                    for z in st.static_zones]
     else:
         raise HTTPException(404, f"Unknown data type: {data_type}")
     return {"type": "FeatureCollection", "features": features}
@@ -261,11 +254,11 @@ async def storage_sync():
     if not store.is_configured:
         return {"status": "not_configured"}
     synced = 0
-    if graph_data:
-        for h in graph_data.habitations: store.save_habitation(h.model_dump()); synced += 1
-        for s in graph_data.shelters: store.save_shelter(s.model_dump()); synced += 1
-        for r in graph_data.road_segments: store.save_road(r.model_dump()); synced += 1
-    for z in static_zones: store.save_hazard_zone(z.model_dump()); synced += 1
+    if st.graph_data:
+        for h in st.graph_data.habitations: store.save_habitation(h.model_dump()); synced += 1
+        for s in st.graph_data.shelters: store.save_shelter(s.model_dump()); synced += 1
+        for r in st.graph_data.road_segments: store.save_road(r.model_dump()); synced += 1
+    for z in st.static_zones: store.save_hazard_zone(z.model_dump()); synced += 1
     return {"status": "synced", "records": synced}
 
 
@@ -282,7 +275,7 @@ async def ml_population_estimate(district: str = "Chamoli"):
     """ML-based population estimation (WorldPop + Sentinel-2 + Census)."""
     import httpx
     lat_c, lon_c = 30.40, 79.45
-    census = sum(h.population_estimate for h in (graph_data.habitations if graph_data else []))
+    census = sum(h.population_estimate for h in (st.graph_data.habitations if st.graph_data else []))
     wp_data = []
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
@@ -292,7 +285,7 @@ async def ml_population_estimate(district: str = "Chamoli"):
     except Exception:
         pass
 
-    hab_list = graph_data.habitations if graph_data else []
+    hab_list = st.graph_data.habitations if st.graph_data else []
     per_hab = []
     for h in hab_list:
         sat = int(h.population_estimate * 0.84)
@@ -316,15 +309,15 @@ async def ogc_wfs(request: str = "GetCapabilities", typeName: str = None, maxFea
         limit = min(maxFeatures, 1000)
         features = []
         name = typeName or "hazard_zones"
-        if name == "hazard_zones" and static_zones:
+        if name == "hazard_zones" and st.static_zones:
             features = [{"type": "Feature", "geometry": {"type": "Point", "coordinates": [z.center.get("lon", 0) if isinstance(z.center, dict) else z.center.lon, z.center.get("lat", 0) if isinstance(z.center, dict) else z.center.lat]},
-                         "properties": {"id": z.id, "hazard_type": z.hazard_type.value, "severity": z.severity}} for z in static_zones[:limit]]
-        elif name == "shelters" and graph_data:
+                         "properties": {"id": z.id, "hazard_type": z.hazard_type.value, "severity": z.severity}} for z in st.static_zones[:limit]]
+        elif name == "shelters" and st.graph_data:
             features = [{"type": "Feature", "geometry": {"type": "Point", "coordinates": [s.location.lon, s.location.lat]},
-                         "properties": {"id": s.id, "name": s.name, "bed_capacity": s.bed_capacity}} for s in graph_data.shelters[:limit]]
-        elif name == "habitations" and graph_data:
+                         "properties": {"id": s.id, "name": s.name, "bed_capacity": s.bed_capacity}} for s in st.graph_data.shelters[:limit]]
+        elif name == "habitations" and st.graph_data:
             features = [{"type": "Feature", "geometry": {"type": "Point", "coordinates": [h.location.lon, h.location.lat]},
-                         "properties": {"id": h.id, "name": h.name, "population": h.population_estimate}} for h in graph_data.habitations[:limit]]
+                         "properties": {"id": h.id, "name": h.name, "population": h.population_estimate}} for h in st.graph_data.habitations[:limit]]
         return {"type": "FeatureCollection", "features": features, "numberReturned": len(features)}
     return {"error": f"Unknown request: {request}"}
 
@@ -382,7 +375,7 @@ async def features_summary():
 @router.get("/api/audit/verify/{order_id}")
 async def verify_audit(order_id: str):
     """Public audit verification for relocation orders."""
-    for order in relocation_orders:
+    for order in st.relocation_orders:
         if order.order_id == order_id:
             computed = order.compute_hash()
             match = computed == order.audit_hash

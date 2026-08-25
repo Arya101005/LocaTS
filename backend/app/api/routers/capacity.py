@@ -19,10 +19,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from backend.app.api.state import (
-    graph_data, graph_builder, shortest_paths,
-    static_zones, sensor_readings, optimizer,
-)
+import backend.app.api.state as st
 from backend.app.models.domain import (
     CapacityGraph, RoadStatus, StaticHazardZone,
     HazardType, LiveSensorReading,
@@ -51,7 +48,6 @@ class ShelterCapacityUpdate(BaseModel):
 @router.post("/api/capacity/load")
 async def load_capacity_graph(graph: CapacityGraph):
     """Load the full capacity graph (habitations, shelters, roads)."""
-    import backend.app.api.state as st
     st.graph_data = graph
     st.graph_builder = CapacityGraphBuilder(population_safety_margin=0.15)
     st.graph_data = st.graph_builder.build(st.graph_data)
@@ -67,15 +63,14 @@ async def load_capacity_graph(graph: CapacityGraph):
 
 
 @router.post("/api/capacity/load-real")
-async def load_real_data(district: str = "Chamoli", state: str = "Uttarakhand"):
+async def load_real_data(district: str = "Chamoli", state_name: str = "Uttarakhand"):
     """Load REAL geographic data from OSM, NDMA/Bhuvan, and india-geodata."""
-    import backend.app.api.state as st
     try:
         from backend.app.data.ingestion.real_data_loader import RealDataLoader
         from backend.app.data.ingestion.ndma_ingester import NDMAIngester
         from backend.app.data.ingestion.rainfall_ingester import RainfallIngester
 
-        loader = RealDataLoader(district=district, state=state)
+        loader = RealDataLoader(district=district, state=state_name)
         try:
             st.graph_data = loader.load_capacity_graph()
         finally:
@@ -109,7 +104,7 @@ async def load_real_data(district: str = "Chamoli", state: str = "Uttarakhand"):
         st.shortest_paths = st.graph_builder.compute_shortest_paths(st.graph_data)
 
         return {
-            "status": "loaded", "district": district, "state": state,
+            "status": "loaded", "district": district, "state": state_name,
             "habitations": len(st.graph_data.habitations),
             "shelters": len(st.graph_data.shelters),
             "road_segments": len(st.graph_data.road_segments),
@@ -124,30 +119,30 @@ async def load_real_data(district: str = "Chamoli", state: str = "Uttarakhand"):
 @router.get("/api/capacity/summary")
 async def get_capacity_summary():
     """Get a summary of shelter capacity."""
-    if not graph_data:
+    if not st.graph_data:
         raise HTTPException(400, "No graph loaded.")
-    if not graph_builder:
+    if not st.graph_builder:
         raise HTTPException(500, "Graph builder not initialized.")
-    return graph_builder.get_shelter_capacity_summary(graph_data)
+    return st.graph_builder.get_shelter_capacity_summary(st.graph_data)
 
 
 @router.get("/api/capacity/graph")
 async def get_graph_data():
     """Get the full capacity graph data."""
-    if not graph_data:
+    if not st.graph_data:
         raise HTTPException(400, "No graph loaded.")
-    return graph_data.model_dump()
+    return st.graph_data.model_dump()
 
 
 @router.get("/api/capacity/names")
 async def get_name_map():
     """Return ID→name lookup map for all loaded entities."""
-    if not graph_data:
+    if not st.graph_data:
         raise HTTPException(400, "No graph loaded.")
     names = {}
-    for h in graph_data.habitations:
+    for h in st.graph_data.habitations:
         names[h.id] = h.name
-    for s in graph_data.shelters:
+    for s in st.graph_data.shelters:
         names[s.id] = s.name
     return {"names": names}
 
@@ -155,7 +150,6 @@ async def get_name_map():
 @router.post("/api/road/update")
 async def update_road_status(update: RoadStatusUpdate):
     """Update road status — triggers graph rebuild for re-optimization."""
-    import backend.app.api.state as st
     if not st.graph_data:
         raise HTTPException(400, "No graph loaded.")
     found = False
@@ -177,9 +171,9 @@ async def update_road_status(update: RoadStatusUpdate):
 @router.post("/api/shelter/update")
 async def update_shelter_capacity(update: ShelterCapacityUpdate):
     """Update shelter occupancy."""
-    if not graph_data:
+    if not st.graph_data:
         raise HTTPException(400, "No graph loaded.")
-    for shelter in graph_data.shelters:
+    for shelter in st.graph_data.shelters:
         if shelter.id == update.shelter_id:
             shelter.beds_occupied = update.beds_occupied
             return {"status": "updated", "shelter_id": update.shelter_id,

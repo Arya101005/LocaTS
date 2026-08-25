@@ -21,11 +21,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, HTTPException
 
-from backend.app.api.state import (
-    graph_data, graph_builder, optimizer, static_zones,
-    sensor_readings, crowd_reports, offline_reports,
-    relocation_orders, hazard_confidences,
-)
+import backend.app.api.state as st
 
 router = APIRouter(tags=["dashboard"])
 
@@ -34,22 +30,22 @@ router = APIRouter(tags=["dashboard"])
 async def dashboard_data():
     """Aggregated data for the operator dashboard."""
     summary = {}
-    if graph_data and graph_builder:
-        summary = graph_builder.get_shelter_capacity_summary(graph_data)
+    if st.graph_data and st.graph_builder:
+        summary = st.graph_builder.get_shelter_capacity_summary(st.graph_data)
     return {
         "hazard_zones": [
             {"id": z.id, "type": z.hazard_type.value, "severity": z.severity, "center": z.center}
-            for z in static_zones
+            for z in st.static_zones
         ],
-        "sensor_readings_count": len(sensor_readings),
-        "crowd_reports_count": len(crowd_reports),
+        "sensor_readings_count": len(st.sensor_readings),
+        "crowd_reports_count": len(st.crowd_reports),
         "capacity_summary": summary,
         "hazard_confidences": {
             k: {"confidence": v.confidence, "alert_level": v.alert_level.value}
-            for k, v in hazard_confidences.items()
+            for k, v in st.hazard_confidences.items()
         },
-        "latest_result": optimizer._last_result.model_dump() if optimizer and optimizer._last_result else None,
-        "relocation_orders_count": len(relocation_orders),
+        "latest_result": st.optimizer._last_result.model_dump() if st.optimizer and st.optimizer._last_result else None,
+        "relocation_orders_count": len(st.relocation_orders),
     }
 
 
@@ -62,22 +58,22 @@ async def get_relocation_orders():
         "issued_at": o.issued_at.isoformat(), "issued_by": o.issued_by,
         "total_relocated": o.result.total_people_relocated,
         "is_feasible": o.result.is_feasible,
-    } for o in relocation_orders]}
+    } for o in st.relocation_orders]}
 
 
 @router.post("/api/offline/report")
 async def submit_offline_report(report):
     """Submit offline report (edge 5.9: last-write-wins conflict resolution)."""
-    existing = [r for r in offline_reports if r.client_id == report.client_id
+    existing = [r for r in st.offline_reports if r.client_id == report.client_id
                 and r.report.hazard_type == report.report.hazard_type
                 and abs(r.client_timestamp - report.client_timestamp) < 60]
     if existing:
         for old in existing:
             if report.client_timestamp >= old.client_timestamp:
-                offline_reports.remove(old)
-                offline_reports.append(report)
+                st.offline_reports.remove(old)
+                st.offline_reports.append(report)
         return {"status": "conflict_resolved", "resolution": "last_write_wins"}
-    offline_reports.append(report)
+    st.offline_reports.append(report)
     return {"status": "accepted", "sync_status": "pending"}
 
 
@@ -85,12 +81,12 @@ async def submit_offline_report(report):
 async def sync_offline_reports():
     """Sync pending offline reports into the main crowd report pool."""
     synced = 0
-    for off in offline_reports:
+    for off in st.offline_reports:
         if off.sync_status == "pending":
-            crowd_reports.append(off.report)
+            st.crowd_reports.append(off.report)
             off.sync_status = "synced"
             synced += 1
-    return {"synced": synced, "total_pending": sum(1 for r in offline_reports if r.sync_status == "pending")}
+    return {"synced": synced, "total_pending": sum(1 for r in st.offline_reports if r.sync_status == "pending")}
 
 
 @router.get("/api/backtest/events")
@@ -107,16 +103,16 @@ async def list_backtest_events():
 @router.get("/api/backtest/{event_id}")
 async def run_backtest(event_id: str):
     """Run historical backtest against a documented disaster event."""
-    if not graph_data or not static_zones:
+    if not st.graph_data or not st.static_zones:
         raise HTTPException(400, "Load graph and hazard zones first.")
     from backend.app.utils.backtest import run_backtest as _run_backtest
     try:
         result = _run_backtest(
-            event_id=event_id, graph_data=graph_data,
+            event_id=event_id, graph_data=st.graph_data,
             hazard_zones=[{"id": z.id, "hazard_type": z.hazard_type.value,
                            "severity": z.severity, "center_lat": z.center.lat,
                            "center_lon": z.center.lon, "radius_km": z.radius_km}
-                          for z in static_zones],
+                          for z in st.static_zones],
         )
         return result.model_dump()
     except ValueError as e:
@@ -126,14 +122,14 @@ async def run_backtest(event_id: str):
 @router.get("/api/explain/{habitation_id}")
 async def explain_habitation(habitation_id: str):
     """Full explainability for a habitation."""
-    if not graph_data:
+    if not st.graph_data:
         raise HTTPException(400, "No graph loaded.")
-    hab = graph_data.get_habitation_by_id(habitation_id)
+    hab = st.graph_data.get_habitation_by_id(habitation_id)
     if not hab:
-        raise HTTPException(404, f"Habitation {habitation_id} not found.")
+        raise HTTPException(404, f"habitation {habitation_id} not found.")
 
     hazard_exp = {}
-    for key, conf in hazard_confidences.items():
+    for key, conf in st.hazard_confidences.items():
         if key.startswith(habitation_id + ":"):
             hazard_exp[key] = {"confidence": conf.confidence,
                                "alert_level": conf.alert_level.value,
@@ -141,8 +137,8 @@ async def explain_habitation(habitation_id: str):
                                "component_scores": conf.component_scores}
 
     assign_exp = []
-    if optimizer and optimizer._last_result:
-        for a in optimizer._last_result.assignments:
+    if st.optimizer and st.optimizer._last_result:
+        for a in st.optimizer._last_result.assignments:
             if a.habitation_id == habitation_id:
                 assign_exp.append({
                     "shelter_id": a.shelter_id, "people_assigned": a.people_assigned,
@@ -159,18 +155,18 @@ async def explain_habitation(habitation_id: str):
 @router.get("/api/resources/forecasts")
 async def get_resource_forecasts():
     """Resource shortfall forecasts for all shelters."""
-    if not optimizer or not optimizer._last_result:
+    if not st.optimizer or not st.optimizer._last_result:
         raise HTTPException(400, "Run optimization first.")
-    return {"forecasts": [f.model_dump() for f in optimizer._last_result.resource_forecasts]}
+    return {"forecasts": [f.model_dump() for f in st.optimizer._last_result.resource_forecasts]}
 
 
 @router.get("/api/resources/shortfall-forecast")
 async def shortfall_forecast():
     """Forecast when each shelter runs out of beds/water."""
-    if not graph_data:
+    if not st.graph_data:
         raise HTTPException(400, "No graph loaded.")
     forecasts = []
-    for s in graph_data.shelters:
+    for s in st.graph_data.shelters:
         if not s.is_active:
             continue
         avail = s.bed_capacity - s.beds_occupied
