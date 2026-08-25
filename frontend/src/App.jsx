@@ -116,7 +116,7 @@ function LandingPage() {
             </div>
           )}
           {mode === 'signup' && (
-            <div style={{ marginTop: 16, textAlign: 'center', fontSize: 11, color: '#94A3B8' }}>
+            <div style={{ marginTop: 16, textAlign: 'center', fontSize: 11, color: '#94A3B8', lineHeight: 1.5 }}>
               New accounts start as citizens. Admin can upgrade your role.
             </div>
           )}
@@ -484,28 +484,11 @@ function AppContent() {
   // Logged in — redirect citizen to /citizen, others to /admin
   const role = authRole || profile?.role || 'citizen';
   if (isCitizen) {
-    // Citizen portal — show citizen-specific UI
-    if (role === 'citizen' || role === 'admin' || role === 'operator') {
-      return (
-        <Suspense fallback={<div style={{ padding: 40, textAlign: 'center', color: '#94A3B8' }}>Loading...</div>}>
-          <div className="app-layout">
-            <header className="app-header">
-              <div className="logo">
-                <div className="logo-mark">L</div>
-                <span className="logo-text">LocaTS</span>
-                <span className="logo-sub">Citizen Portal</span>
-              </div>
-              <div className="header-right">
-                <span style={{ fontSize: 12, color: '#6B7280' }}>Welcome, {profile?.full_name || user.email}</span>
-                <span className="badge badge-warn">citizen</span>
-                <button className="btn btn-sm btn-secondary" onClick={() => { logout(); window.location.href = '/'; }}>Sign Out</button>
-              </div>
-            </header>
-            <CitizenPortal />
-          </div>
-        </Suspense>
-      );
-    }
+    return (
+      <Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F0F9F4' }}><div style={{ textAlign: 'center', color: '#6B7280' }}>Loading...</div></div>}>
+        <CitizenPortal user={user} profile={profile} onLogout={logout} />
+      </Suspense>
+    );
     // Admin/operator on /citizen — redirect to admin
     window.location.href = '/admin';
     return null;
