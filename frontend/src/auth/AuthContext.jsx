@@ -118,8 +118,12 @@ export function AuthProvider({ children }) {
   const isOperator = role === 'operator' || role === 'admin';
   const isViewer = role === 'viewer';
 
+  const ctxValue = React.useMemo(() => ({
+    user, profile, token, loading, login, signup, logout, becomeAdmin, isAdmin, isOperator, isViewer, role
+  }), [user, profile, token, loading, login, signup, logout, becomeAdmin, isAdmin, isOperator, isViewer, role]);
+
   return (
-    <AuthContext.Provider value={{ user, profile, token, loading, login, signup, logout, becomeAdmin, isAdmin, isOperator, isViewer, role }}>
+    <AuthContext.Provider value={ctxValue}>
       {children}
     </AuthContext.Provider>
   );
