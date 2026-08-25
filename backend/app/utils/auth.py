@@ -154,7 +154,6 @@ def create_auth_routes(app):
         if not client:
             return {"error": "Supabase not configured. Set SUPABASE_URL and SUPABASE_KEY in .env."}
 
-        # Determine default role: pranavarya2005@gmail.com is always admin
         default_role = "admin" if signup.email.lower() == "pranavarya2005@gmail.com" else "citizen"
 
         try:
@@ -163,51 +162,25 @@ def create_auth_routes(app):
                 "password": signup.password,
                 "options": {"data": {"full_name": signup.name, "role": default_role}},
             })
-            # Upsert user profile with role
+            # Save role in user_profiles (fire-and-forget, don't block)
             try:
-                client.table("user_profiles").upsert({
-                    "id": result.user.id if result.user else "",
-                    "email": signup.email,
-                    "role": default_role,
-                    "full_name": signup.name,
-                    "is_active": True,
-                }).execute()
+                if result.user:
+                    client.table("user_profiles").upsert({
+                        "id": result.user.id, "email": signup.email,
+                        "role": default_role, "full_name": signup.name, "is_active": True,
+                    }).execute()
             except Exception:
-                pass  # Table may not exist
+                pass
+            # If session returned (email confirm OFF), user is ready to sign in
             if result.session:
-                return {
-                    "status": "signup_complete",
-                    "access_token": result.session.access_token,
-                    "refresh_token": result.session.refresh_token,
-                    "expires_at": result.session.expires_at,
-                    "user": {"email": result.user.email, "id": result.user.id},
-                    "role": default_role,
-                }
-            if result.user:
-                # Try to auto-confirm the user (Supabase email confirmation may be on)
-                try:
-                    # Use admin API to confirm if available
-                    client.auth.admin.update_user_by_id(result.user.id, {"email_confirm": True})
-                except Exception:
-                    pass  # Admin API may not be available
-                # Try to sign in directly — may work if auto-confirm is enabled
-                try:
-                    login_result = client.auth.sign_in_with_password({"email": signup.email, "password": signup.password})
-                    if login_result.session:
-                        return {
-                            "status": "signup_complete",
-                            "access_token": login_result.session.access_token,
-                            "refresh_token": login_result.session.refresh_token,
-                            "expires_at": login_result.session.expires_at,
-                            "user": {"email": login_result.user.email, "id": login_result.user.id},
-                            "role": default_role,
-                        }
-                except Exception:
-                    pass  # Email confirmation required — user must verify
-                return {"status": "signup_pending", "email": signup.email, "role": default_role, "message": "Account created! Please check your email to verify, then sign in. (Or ask admin to disable email confirmation in Supabase Dashboard → Auth → Email)", "needs_verification": True}
-            return {"error": "Signup failed"}
+                return {"status": "signup_complete", "message": "Account created! Please sign in."}
+            # Email confirmation is ON — user must verify
+            return {"status": "signup_pending", "message": "Account created! Please check your email to verify, then sign in.", "needs_verification": True}
         except Exception as e:
-            return {"error": str(e)}
+            err = str(e)
+            if "already registered" in err.lower() or "already exists" in err.lower():
+                return {"error": "An account with this email already exists. Please sign in instead."}
+            return {"error": err}
 
     @app.post("/api/auth/login")
     async def auth_login(login_req: AuthLogin):
