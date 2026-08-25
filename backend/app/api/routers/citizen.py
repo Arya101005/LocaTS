@@ -20,7 +20,7 @@ import hashlib as hl
 import time
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from backend.app.api.state import (
@@ -112,8 +112,10 @@ async def citizen_village_list():
 
 
 @router.post("/api/citizen/report")
-async def citizen_crowd_report(report):
-    """Simplified citizen crowd report endpoint."""
+async def citizen_crowd_report(report, request: Request):
+    """Simplified citizen crowd report endpoint. Rate-limited per IP."""
+    from backend.app.api.rate_limit import check_rate_limit
+    check_rate_limit(request, "citizen_report", max_requests=10, window_seconds=300)  # 10 per 5 min per IP
     report_id = f"cr-{len(crowd_reports)+1:05d}"
     crowd_reports.append(CrowdReport(
         id=report_id, reporter_id=report.reporter_id,
@@ -160,7 +162,19 @@ async def register_evacuee(evacuee: EvacueeRegistration):
 
 @router.post("/api/family/search")
 async def search_family(search: FamilySearch):
-    """Search for a family member across all shelters."""
+    """Search for a family member across all shelters.
+    
+    PRIVACY: Name alone is not sufficient. At least one secondary identifier
+    (home_habitation_id or age_range) is required to return results.
+    This prevents location tracking by name-only queries.
+    """
+    # Require at least one secondary identifier for privacy
+    if not search.home_habitation_id and not search.age_range:
+        return {
+            "results": [],
+            "message": "To protect privacy, please provide at least one additional identifier: home village or age group.",
+            "requires_secondary_id": True,
+        }
     q_hash = hl.sha256(search.search_name.encode()).hexdigest()[:16]
     results = []
     for ev in _evacuees:

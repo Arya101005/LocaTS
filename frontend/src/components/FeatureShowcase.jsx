@@ -17,11 +17,11 @@ const CATEGORIES = [
     key: 'citizen_services', label: 'Citizen Services', icon: '👥',
     gradient: 'linear-gradient(135deg, #2563EB, #1D4ED8)',
     features: [
-      { name: 'Citizen Portal', detail: 'No-login public portal with village-specific alerts' },
-      { name: 'IVR Phone Helpline', detail: 'Hindi/English voice menu for basic phone users' },
-      { name: 'TTS Multilingual Alerts', detail: 'Hindi + English voice alerts via Twilio' },
-      { name: 'WhatsApp Bot', detail: 'Web-based crowd reporting, ready for WhatsApp Business API' },
-      { name: 'Family Reunification', detail: 'Cross-shelter search with anonymized IDs' },
+      { name: 'Citizen Portal', detail: 'No-login public portal with village-specific alerts', status: 'production' },
+      { name: 'IVR Phone Helpline', detail: 'Hindi/English voice menu — web demo, Twilio integration ready', status: 'prototype' },
+      { name: 'TTS Multilingual Alerts', detail: 'Hindi + English voice alerts via Twilio', status: 'production' },
+      { name: 'WhatsApp Bot', detail: 'Web-based crowd reporting demo — requires WhatsApp Business API for production', status: 'prototype' },
+      { name: 'Family Reunification', detail: 'Cross-shelter search with anonymized IDs', status: 'production' },
     ],
   },
   {
@@ -85,7 +85,7 @@ export default function FeatureShowcase() {
   }, []);
 
   const totalFeatures = 32;
-  const workingCount = 32;
+  const workingCount = 29;  // 4 features are prototype/demo-only
 
   return (
     <div style={{ padding: 0, fontFamily: "'Inter', system-ui, sans-serif" }}>
@@ -198,7 +198,7 @@ export default function FeatureShowcase() {
                   <div>
                     <div style={{ fontWeight: 700, fontSize: '15px', color: '#111827' }}>{cat.label}</div>
                     <div style={{ fontSize: '12px', color: '#6B7280', marginTop: 2 }}>
-                      {cat.features.length} features — <span style={{ color: '#16A34A', fontWeight: 600 }}>all working</span>
+                      {cat.features.length} features — {cat.features.filter(f => f.status === 'prototype').length > 0 ? `${cat.features.filter(f => f.status !== 'prototype').length} verified, ${cat.features.filter(f => f.status === 'prototype').length} prototype` : 'all verified'}
                     </div>
                   </div>
                 </div>
@@ -228,10 +228,14 @@ export default function FeatureShowcase() {
                     }}>
                       <div style={{
                         width: 8, height: 8, borderRadius: '50%', marginTop: 5, flexShrink: 0,
-                        background: '#22C55E', boxShadow: '0 0 0 3px rgba(34,197,94,0.15)',
+                        background: f.status === 'prototype' ? '#F59E0B' : '#22C55E',
+                        boxShadow: f.status === 'prototype' ? '0 0 0 3px rgba(245,158,11,0.15)' : '0 0 0 3px rgba(34,197,94,0.15)',
                       }} />
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: '13px', color: '#111827' }}>{f.name}</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 600, fontSize: '13px', color: '#111827', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {f.name}
+                          {f.status === 'prototype' && <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 6, background: '#FEF3C7', color: '#92400E', fontWeight: 700 }}>PROTOTYPE</span>}
+                        </div>
                         <div style={{ fontSize: '11px', color: '#6B7280', marginTop: 2, lineHeight: 1.4 }}>{f.detail}</div>
                       </div>
                     </div>
@@ -282,8 +286,8 @@ export default function FeatureShowcase() {
         </h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
           {[
-            { label: 'Unit Tests', value: '14/14 passing', color: '#16A34A' },
-            { label: 'API Endpoints', value: '25+ REST endpoints', color: '#2563EB' },
+            { label: 'Unit Tests', value: '41/41 passing', color: '#16A34A' },
+            { label: 'API Endpoints', value: '83 REST endpoints', color: '#2563EB' },
             { label: 'Real Data', value: 'Chamoli district', color: '#7C3AED' },
             { label: 'Solver Speed', value: '<0.01s', color: '#0891B2' },
             { label: 'Population', value: '149,261 covered', color: '#EA580C' },

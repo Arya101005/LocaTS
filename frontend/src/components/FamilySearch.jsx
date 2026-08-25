@@ -5,6 +5,7 @@ const API = '/api';
 export default function FamilySearch() {
   const [name, setName] = useState('');
   const [habitation, setHabitation] = useState('');
+  const [ageGroup, setAgeGroup] = useState('');
   const [results, setResults] = useState(null);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -13,11 +14,11 @@ export default function FamilySearch() {
   const [regResult, setRegResult] = useState(null);
 
   const search = useCallback(async () => {
-    if (!name) return; setLoading(true); setMessage('');
-    try { const r = await fetch(`${API}/family/search`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ search_name: name, home_habitation_id: habitation || undefined }) }); const d = await r.json(); setResults(d.results||[]); setMessage(d.message); }
+    if (!name || !habitation) return; setLoading(true); setMessage('');
+    try { const r = await fetch(`${API}/family/search`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ search_name: name, home_habitation_id: habitation, age_range: ageGroup || undefined }) }); const d = await r.json(); setResults(d.results||[]); setMessage(d.message); }
     catch (e) { setMessage(`Error: ${e.message}`); }
     finally { setLoading(false); }
-  }, [name, habitation]);
+  }, [name, habitation, ageGroup]);
 
   const register = useCallback(async () => {
     if (!regForm.name || !regForm.shelter_id) return; setLoading(true);
@@ -39,8 +40,10 @@ export default function FamilySearch() {
       {tab === 'search' ? (
         <div>
           <div className="form-group"><label className="form-label">Full Name</label><input className="form-input" value={name} onChange={e => setName(e.target.value)} placeholder="Enter the person's full name" /></div>
-          <div className="form-group"><label className="form-label">Home Village (optional)</label><input className="form-input" value={habitation} onChange={e => setHabitation(e.target.value)} placeholder="e.g. Raini Village" /></div>
-          <button className="btn btn-primary" onClick={search} disabled={loading||!name}>{loading ? 'Searching...' : 'Search All Shelters'}</button>
+          <div className="form-group"><label className="form-label">Home Village *</label><input className="form-input" value={habitation} onChange={e => setHabitation(e.target.value)} placeholder="e.g. Raini Village (required)" required /></div>
+          <div className="form-group"><label className="form-label">Age Group (optional)</label><select className="form-select" value={ageGroup} onChange={e => setAgeGroup(e.target.value)}><option value="">Any</option><option value="child">Child</option><option value="adult">Adult</option><option value="elderly">Elderly</option></select></div>
+          <button className="btn btn-primary" onClick={search} disabled={loading||!name||!habitation}>{loading ? 'Searching...' : 'Search All Shelters'}</button>
+          <div style={{ marginTop: 8, fontSize: 11, color: '#94A3B8' }}>* Home village is required to protect privacy. Name alone cannot return results.</div>
           {message && <div className="card" style={{ marginTop: 14, padding: 12, fontSize: 13, color: 'var(--text-secondary)' }}>{message}</div>}
           {results && results.length > 0 && (
             <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>

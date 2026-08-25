@@ -74,7 +74,7 @@ export default function LoginPage() {
 
           {mode === 'login' && (
             <div style={{ marginTop: 20, textAlign: 'center', fontSize: 12, color: '#94A3B8' }}>
-              Demo credentials: <span style={{ fontFamily: 'monospace', color: '#475569' }}>admin@locats.gov.in / admin123</span>
+              Demo credentials are in the project README or .env.example
             </div>
           )}
         </div>

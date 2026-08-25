@@ -61,6 +61,12 @@ export default function WhatsAppBot() {
 
   return (
     <div style={{ maxWidth: 420, margin: '0 auto', height: '100%', display: 'flex', flexDirection: 'column', background: '#E5DDD5', borderRadius: 16, overflow: 'hidden', border: '1px solid #D1D9DB' }}>
+      {/* Prototype Badge */}
+      <div style={{ background: '#FEF3C7', borderBottom: '1px solid #FDE68A', padding: '8px 18px', fontSize: 12, color: '#92400E', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#F59E0B' }} />
+        Prototype — not connected to WhatsApp Business API
+      </div>
+
       {/* Header */}
       <div style={{ background: '#075E54', color: '#fff', padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
         <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#25D366', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800 }}>W</div>

@@ -40,7 +40,10 @@ export default function IVRDemo() {
   return (
     <div style={{ maxWidth: 600, margin: '0 auto' }}>
       <div style={{ marginBottom: 28 }}>
-        <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Phone Helpline Demo</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+          <h2 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>Phone Helpline Demo</h2>
+          <span style={{ padding: '3px 10px', borderRadius: 12, fontSize: 11, fontWeight: 700, background: '#FEF3C7', color: '#92400E', border: '1px solid #FDE68A' }}>Prototype</span>
+        </div>
         <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Simulates a helpline for people without smartphones. Connects via Twilio in production.</p>
       </div>
       {!sessionId ? (
