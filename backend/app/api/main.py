@@ -48,6 +48,7 @@ from pathlib import Path
 from backend.app.hazard_fusion.fusion import fuse_hazard_scores
 from backend.app.capacity.graph_builder import CapacityGraphBuilder
 from backend.app.optimizer.optimizer import OptimizationEngine
+from backend.app.data.persistence import persistence
 
 
 app = FastAPI(
@@ -123,6 +124,13 @@ def _auto_load_data():
         _shortest_paths = _graph_builder.compute_shortest_paths(_graph_data)
         print(f"  [AutoLoad] Done: {len(_graph_data.habitations)} habs, {len(_graph_data.shelters)} shelters, {len(_graph_data.road_segments)} roads")
         print(f"  [AutoLoad] Beds: {sum(s.bed_capacity for s in _graph_data.shelters):,} | Population: {sum(h.population_estimate for h in _graph_data.habitations):,}")
+        # Seed Supabase with loaded data
+        if persistence.is_configured:
+            try:
+                stats = persistence.seed_from_graph(_graph_data, _static_zones, _sensor_readings)
+                print(f"  [AutoLoad] Supabase seeded: {stats}")
+            except Exception as e:
+                print(f"  [AutoLoad] Supabase seed failed: {e}")
     except Exception as e:
         print(f"  [AutoLoad] FAILED: {e}")
         import traceback; traceback.print_exc()
@@ -225,26 +233,31 @@ async def health():
 @app.post("/api/hazard/zones")
 async def add_hazard_zone(zone: HazardZoneAdd):
     """Add a static hazard zone to the fusion layer."""
-    _static_zones.append(StaticHazardZone(
+    new_zone = StaticHazardZone(
         id=zone.id,
         hazard_type=zone.hazard_type,
         severity=zone.severity,
         zone_type=zone.zone_type,
         center={"lat": zone.center_lat, "lon": zone.center_lon},
         radius_km=zone.radius_km,
-    ))
+    )
+    _static_zones.append(new_zone)
+    # Persist to Supabase
+    persistence.save_hazard_zone({"id": zone.id, "hazard_type": zone.hazard_type.value if hasattr(zone.hazard_type, 'value') else zone.hazard_type, "severity": zone.severity, "center": {"lat": zone.center_lat, "lon": zone.center_lon}, "radius_km": zone.radius_km, "district": "Chamoli"})
     return {"status": "added", "zone_id": zone.id, "total_zones": len(_static_zones)}
 
 
 @app.post("/api/hazard/sensor")
 async def add_sensor_reading(reading: SensorReadingAdd):
     """Add a live sensor reading (IMD rainfall, seismic, etc.)."""
-    _sensor_readings.append(LiveSensorReading(
+    new_reading = LiveSensorReading(
         source=reading.source,
         location={"lat": reading.lat, "lon": reading.lon},
         value=reading.value,
         timestamp=datetime.utcnow(),
-    ))
+    )
+    _sensor_readings.append(new_reading)
+    # Sensor readings are transient (high frequency) — not persisted to DB
     return {"status": "added", "total_readings": len(_sensor_readings)}
 
 
@@ -1554,25 +1567,30 @@ async def satellite_imagery(lat: float, lon: float, before: str = "", after: str
 # ---------------------------------------------------------------------------
 
 @app.get("/api/rainfall/live")
-async def rainfall_live():
-    """Scrape live rainfall data from IMD HTML pages."""
-    from backend.app.data.ingestion.imd_scraper import imd_scraper
-    readings = imd_scraper.scrape_uttarakhand_rainfall()
+async def rainfall_live(district: str = "Chamoli"):
+    """Get live rainfall data from Open-Meteo API with IMD fallback."""
+    from backend.app.data.ingestion.openmeteo_rainfall import get_openmeteo
+    metro = get_openmeteo(district)
+    readings = metro.get_current_rainfall()
     return {
         "readings": readings,
         "count": len(readings),
-        "source": "IMD live (mausam.imd.gov.in)",
+        "source": "Open-Meteo API (real-time)",
+        "district": district,
     }
 
 
 @app.get("/api/rainfall/trend")
-async def rainfall_trend(hours: int = 24):
-    """Get rainfall trend for the last N hours."""
-    from backend.app.data.ingestion.imd_scraper import imd_scraper
-    trend = imd_scraper.get_rainfall_trend(hours=hours)
+async def rainfall_trend(hours: int = 24, district: str = "Chamoli"):
+    """Get rainfall trend (past observation + forecast) for the last N hours."""
+    from backend.app.data.ingestion.openmeteo_rainfall import get_openmeteo
+    metro = get_openmeteo(district)
+    trend = metro.get_rainfall_trend(hours=hours)
     return {
         "trend": trend,
         "hours": hours,
+        "district": district,
+        "source": "Open-Meteo API",
     }
 
 
