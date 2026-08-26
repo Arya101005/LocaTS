@@ -11,35 +11,65 @@ export function useSSE(url = '/api/sse/stream', onUpdate) {
   const [reconnecting, setReconnecting] = useState(false);
   const eventSourceRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
-  const reconnectDelayRef = useRef(2000);
+  const reconnectDelayRef = useRef(5000);
   const failCountRef = useRef(0);
   const mountedRef = useRef(true);
   const onUpdateRef = useRef(onUpdate);
+  const pollIntervalRef = useRef(null);
+  const urlRef = useRef(url);
 
-  // Keep callback ref stable
+  urlRef.current = url;
+
   useEffect(() => {
     onUpdateRef.current = onUpdate;
   }, [onUpdate]);
 
-  const connect = useCallback(() => {
-    if (!mountedRef.current || !url) return;
+  const pollStatus = useCallback(async () => {
+    if (!urlRef.current || !mountedRef.current) return;
+    try {
+      const res = await fetch('/api/sse/status');
+      if (res.ok) {
+        const data = await res.json();
+        setLastUpdate(new Date());
+        onUpdateRef.current?.(data.data);
+      }
+    } catch (e) {}
+  }, []);
 
-    // If too many failures, stop trying (serverless environment)
-    if (failCountRef.current >= 3) {
+  const startPolling = useCallback(() => {
+    if (pollIntervalRef.current) return;
+    pollStatus();
+    pollIntervalRef.current = setInterval(pollStatus, 15000);
+  }, [pollStatus]);
+
+  const stopPolling = useCallback(() => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+  }, []);
+
+  const connect = useCallback(() => {
+    if (!mountedRef.current || !urlRef.current) return;
+
+    stopPolling();
+
+    if (failCountRef.current >= 2) {
       setConnected(false);
       setReconnecting(false);
+      startPolling();
       return;
     }
 
     try {
-      const es = new EventSource(url);
+      const es = new EventSource(urlRef.current);
       eventSourceRef.current = es;
 
       es.onopen = () => {
         if (!mountedRef.current) return;
         setConnected(true);
         setReconnecting(false);
-        reconnectDelayRef.current = 2000;
+        reconnectDelayRef.current = 5000;
         failCountRef.current = 0;
       };
 
@@ -49,10 +79,8 @@ export function useSSE(url = '/api/sse/stream', onUpdate) {
           const data = JSON.parse(event.data);
           if (data.type === 'update') {
             setLastUpdate(new Date());
-            // Only call onUpdate if data actually changed
             onUpdateRef.current?.(data.data);
           }
-          // heartbeat — just confirms connection alive, ignore
         } catch (e) {}
       };
 
@@ -61,34 +89,40 @@ export function useSSE(url = '/api/sse/stream', onUpdate) {
         es.close();
         setConnected(false);
         failCountRef.current++;
+        eventSourceRef.current = null;
 
-        // Only reconnect if we haven't failed too many times
-        if (failCountRef.current < 3) {
+        if (failCountRef.current < 2) {
           setReconnecting(true);
           const delay = Math.min(reconnectDelayRef.current, 15000);
           reconnectTimeoutRef.current = setTimeout(() => {
             reconnectDelayRef.current = Math.min(reconnectDelayRef.current * 2, 15000);
             connect();
           }, delay);
+        } else {
+          startPolling();
         }
       };
     } catch (e) {
       setConnected(false);
       failCountRef.current++;
+      startPolling();
     }
-  }, [url]);
+  }, [startPolling, stopPolling]);
 
   useEffect(() => {
     mountedRef.current = true;
     failCountRef.current = 0;
+    stopPolling();
     connect();
 
     return () => {
       mountedRef.current = false;
       eventSourceRef.current?.close();
+      eventSourceRef.current = null;
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+      stopPolling();
     };
-  }, [connect]);
+  }, [connect, startPolling, stopPolling]);
 
   return { connected, lastUpdate, reconnecting };
 }

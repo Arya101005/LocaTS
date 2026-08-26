@@ -35,6 +35,15 @@ router = APIRouter(tags=["citizen"])
 _evacuees: list = []
 
 
+class CitizenReport(BaseModel):
+    reporter_id: str
+    hazard_type: str
+    severity_estimate: float = Field(ge=0, le=1)
+    description: str = ""
+    lat: float = 30.40
+    lon: float = 79.33
+
+
 # --- Citizen Endpoints (no auth) ---
 
 @router.get("/api/citizen/status/{village_id}")
@@ -102,22 +111,40 @@ async def citizen_village_list():
                 elif conf.alert_level.value == "advisory":
                     level = "warning"
         villages.append({"id": h.id, "name": h.name, "block": h.block,
+                         "lat": h.location.lat, "lon": h.location.lon,
                          "population": h.population_estimate, "hazard_level": level})
     return {"villages": villages, "total": len(villages)}
 
 
 @router.post("/api/citizen/report")
-async def citizen_crowd_report(report, request: Request):
+async def citizen_crowd_report(report: CitizenReport, request: Request):
     """Simplified citizen crowd report endpoint. Rate-limited per IP."""
     from backend.app.api.rate_limit import check_rate_limit
     check_rate_limit(request, "citizen_report", max_requests=10, window_seconds=300)
     report_id = f"cr-{len(st.crowd_reports)+1:05d}"
+    ht = report.hazard_type
+    if isinstance(ht, str):
+        try:
+            ht = HazardType(ht)
+        except ValueError:
+            ht = HazardType.FLOOD
     st.crowd_reports.append(CrowdReport(
         id=report_id, reporter_id=report.reporter_id,
-        hazard_type=report.hazard_type, severity_estimate=report.severity_estimate,
+        hazard_type=ht, severity_estimate=report.severity_estimate,
         description=report.description,
         location={"lat": report.lat, "lon": report.lon}, timestamp=datetime.utcnow(),
     ))
+    persistence.save_crowd_report({
+        "id": report_id,
+        "reporter_id": report.reporter_id,
+        "hazard_type": ht.value if hasattr(ht, "value") else ht,
+        "severity_estimate": report.severity_estimate,
+        "description": report.description,
+        "lat": report.lat,
+        "lon": report.lon,
+        "timestamp": datetime.utcnow().isoformat(),
+        "district": "Chamoli",
+    })
     return {"status": "accepted", "report_id": report_id,
             "message": "Report received. Verified by multiple sources before influencing alerts."}
 
@@ -133,6 +160,7 @@ async def citizen_shelters():
             continue
         avail = s.bed_capacity - s.beds_occupied
         shelters.append({"id": s.id, "name": s.name, "district": s.district,
+                         "lat": s.location.lat, "lon": s.location.lon,
                          "type": s.shelter_type, "bed_capacity": s.bed_capacity,
                          "beds_available": avail,
                          "status": "open" if avail > 100 else "limited" if avail > 0 else "full",
@@ -151,6 +179,18 @@ async def register_evacuee(evacuee: EvacueeRegistration):
     if evacuee.name_hash and not all(c in "0123456789abcdef" for c in evacuee.name_hash.lower()):
         evacuee.name_hash = hl.sha256(evacuee.name_hash.encode()).hexdigest()[:16]
     _evacuees.append(evacuee)
+    persistence.save_evacuee({
+        "evacuee_id": evacuee.evacuee_id,
+        "name_hash": evacuee.name_hash,
+        "home_habitation_id": evacuee.home_habitation_id,
+        "age_range": evacuee.age_range,
+        "registered_shelter_id": evacuee.registered_shelter_id,
+        "status": evacuee.status,
+        "needs_medical": evacuee.needs_medical,
+        "needs_accessibility": evacuee.needs_accessibility,
+        "notes": evacuee.notes,
+        "registered_at": evacuee.registered_at.isoformat(),
+    })
     return {"status": "registered", "evacuee_id": evacuee.evacuee_id,
             "message": f"Evacuee registered at {evacuee.registered_shelter_id}."}
 

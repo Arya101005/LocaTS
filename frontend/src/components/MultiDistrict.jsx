@@ -102,14 +102,14 @@ export default function MultiDistrict() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <span style={{ fontSize: '18px' }}>                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: c.status === 'open' ? '#22C55E' : '#DC2626', display: 'inline-block' }} />
                 </span>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: '14px', color: '#111827' }}>
-                    {c.from} → {c.to}
-                  </div>
-                  <div style={{ fontSize: '12px', color: '#6b7280', marginTop: 2 }}>
-                    {c.road} • {c.distance_km} km • {c.travel_time_hrs}h travel time
-                  </div>
-                </div>
+                 <div>
+                   <div style={{ fontWeight: 600, fontSize: '14px', color: '#111827' }}>
+                     {c.from} → {c.to}
+                   </div>
+                   <div style={{ fontSize: '12px', color: '#6b7280', marginTop: 2 }}>
+                     {c.distance_km} km • {c.travel_time_hrs}h travel time
+                   </div>
+                 </div>
               </div>
               <div style={{ display: 'flex', gap: '12px', fontSize: '12px' }}>
                 <span style={{
@@ -156,7 +156,7 @@ export default function MultiDistrict() {
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: 500, color: '#111827' }}>{e.event}</div>
                   <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: 2 }}>
-                    {e.authority} • {new Date(e.time).toLocaleString()}
+                    {new Date(e.time).toLocaleString()}
                   </div>
                 </div>
                 <span style={{

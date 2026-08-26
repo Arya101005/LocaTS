@@ -25,6 +25,8 @@ export default function Dashboard({ data, onOptimize, onReOptimize, optimizing }
   const [habDetails, setHabDetails] = useState(null);
   const [alerts, setAlerts] = useState([]);
   const [socialVuln, setSocialVuln] = useState(null);
+  const [scenarioResult, setScenarioResult] = useState(null);
+  const [scenarioLoading, setScenarioLoading] = useState(false);
 
   const cap = data?.capacity_summary || {};
   const result = data?.latest_result;
@@ -165,7 +167,7 @@ export default function Dashboard({ data, onOptimize, onReOptimize, optimizing }
   const getShelterName = useCallback((id) => nameMap[id] || id, [nameMap]);
 
   // Add map layers
-  const addLayers = useCallback(async () => {
+  const addLayers = useCallback(async (hasResult) => {
     const map = mapInstance.current;
     if (!map || !mapLoaded || !dataReady || layersAdded.current) return;
     await new Promise(r => setTimeout(r, 800));
@@ -204,7 +206,8 @@ export default function Dashboard({ data, onOptimize, onReOptimize, optimizing }
       'circle-stroke-color': '#fff'
     });
 
-    // Evacuation routes
+    // Evacuation routes (only if optimization has been run)
+    if (hasResult) {
     try {
       const routeRes = await fetch(`${API}/evacuation-routes`);
       if (routeRes.ok) {
@@ -224,6 +227,7 @@ export default function Dashboard({ data, onOptimize, onReOptimize, optimizing }
         }
       }
     } catch (e) {}
+    } // end if (hasResult)
 
     layersAdded.current = true;
 
@@ -279,7 +283,7 @@ export default function Dashboard({ data, onOptimize, onReOptimize, optimizing }
     } catch(e) {}
   }, [dataReady, mapLoaded, confidences]);
 
-  useEffect(() => { addLayers(); }, [addLayers]);
+  useEffect(() => { addLayers(data?.latest_result != null); }, [addLayers, data]);
 
   // Fetch nearby capacity
   useEffect(() => {
@@ -290,10 +294,15 @@ export default function Dashboard({ data, onOptimize, onReOptimize, optimizing }
     }
   }, [result]);
 
-  // Fetch shortfall forecast
+  // Fetch shortfall forecast (only when graph is loaded)
   useEffect(() => {
-    fetch(`${API}/resources/shortfall-forecast`).then(r => r.json()).then(setShortfallData).catch(() => {});
-  }, [result]);
+    if (dataReady) {
+      fetch(`${API}/resources/shortfall-forecast`).then(r => {
+        if (r.ok) return r.json();
+        throw new Error();
+      }).then(setShortfallData).catch(() => setShortfallData(null));
+    }
+  }, [dataReady]);
 
   // Fetch rainfall
   useEffect(() => {
@@ -325,8 +334,9 @@ export default function Dashboard({ data, onOptimize, onReOptimize, optimizing }
   }, [onReOptimize]);
 
   const runWhatIf = useCallback(async () => {
+    setScenarioLoading(true);
     try {
-      await fetch(`${API}/whatif`, {
+      const res = await fetch(`${API}/whatif`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -335,9 +345,13 @@ export default function Dashboard({ data, onOptimize, onReOptimize, optimizing }
           disable_shelter_ids: shelterDisableId ? [shelterDisableId] : []
         })
       });
-      onOptimize?.();
-    } catch(e) {}
-  }, [rainfallMult, roadBlockId, shelterDisableId, onOptimize]);
+      if (res.ok) {
+        const data = await res.json();
+        setScenarioResult(data);
+      }
+    } catch(e) { console.error('What-if failed:', e); }
+    finally { setScenarioLoading(false); }
+  }, [rainfallMult, roadBlockId, shelterDisableId]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -455,7 +469,14 @@ export default function Dashboard({ data, onOptimize, onReOptimize, optimizing }
                 <label className="form-label">Disable Shelter</label>
                 <input className="form-input" value={shelterDisableId} onChange={e => setShelterDisableId(e.target.value)} placeholder="shelter-001" />
               </div>
-              <button className="btn btn-secondary btn-block" onClick={runWhatIf}>Run Scenario</button>
+              <button className="btn btn-secondary btn-block" onClick={runWhatIf} disabled={scenarioLoading}>
+                {scenarioLoading ? 'Running...' : 'Run Scenario'}
+              </button>
+              {scenarioResult && (
+                <button className="btn btn-block" onClick={() => setScenarioResult(null)} style={{ marginTop: 6, fontSize: 11, padding: '6px 0', background: '#F1F5F9', color: '#64748B', border: '1px solid #E2E8F0', borderRadius: 8, cursor: 'pointer' }}>
+                  Clear Scenario
+                </button>
+              )}
             </div>
           </div>
 
@@ -663,6 +684,126 @@ export default function Dashboard({ data, onOptimize, onReOptimize, optimizing }
                 </div>
               )}
             </>
+          )}
+
+          {/* === WHAT-IF SCENARIO RESULT === */}
+          {scenarioLoading && (
+            <div className="card" style={{ marginTop: 14, padding: 16, borderColor: 'rgba(37,99,235,0.2)', background: '#EFF6FF' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" style={{ animation: 'spin 2s linear infinite' }}><path d="M12 2v4m0 12v4m-7.07-15.07l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4m-15.07 7.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#2563EB' }}>Running scenario simulation...</span>
+              </div>
+            </div>
+          )}
+          {scenarioResult && !scenarioLoading && (
+            <div className="card" style={{ marginTop: 14, padding: 16, borderColor: 'rgba(37,99,235,0.2)', background: '#EFF6FF' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#2563EB', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+                  What-If Scenario Result
+                </div>
+                <button onClick={() => setScenarioResult(null)} style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>✕ Dismiss</button>
+              </div>
+
+              {/* Scenario parameters */}
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+                {scenarioResult.scenario?.rainfall_multiplier !== 1.0 && (
+                  <span style={{ padding: '2px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700, background: '#DBEAFE', color: '#1D4ED8' }}>
+                    🌧 Rainfall: {scenarioResult.scenario.rainfall_multiplier}x
+                  </span>
+                )}
+                {scenarioResult.scenario?.block_road_ids?.length > 0 && (
+                  <span style={{ padding: '2px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700, background: '#FEF3C7', color: '#92400E' }}>
+                    🚧 Roads blocked: {scenarioResult.scenario.block_road_ids.join(', ')}
+                  </span>
+                )}
+                {scenarioResult.scenario?.disable_shelter_ids?.length > 0 && (
+                  <span style={{ padding: '2px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700, background: '#FEE2E2', color: '#991B1B' }}>
+                    🏚 Shelters disabled: {scenarioResult.scenario.disable_shelter_ids.join(', ')}
+                  </span>
+                )}
+                {scenarioResult.scenario?.population_multiplier !== 1.0 && (
+                  <span style={{ padding: '2px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700, background: '#F3E8FF', color: '#7C3AED' }}>
+                    👥 Population: {scenarioResult.scenario.population_multiplier}x
+                  </span>
+                )}
+              </div>
+
+              {/* Scenario stats vs current */}
+              {scenarioResult.result && (
+                <>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 10 }}>
+                    {[
+                      { l: 'Relocated', v: (scenarioResult.result.total_people_relocated || 0).toLocaleString(), c: '#22C55E' },
+                      { l: 'Unmet', v: (scenarioResult.result.total_people_unmet || 0).toLocaleString(), c: (scenarioResult.result.total_people_unmet || 0) > 0 ? '#DC2626' : '#22C55E' },
+                      { l: 'Feasible', v: scenarioResult.result.is_feasible ? 'Yes' : 'No', c: scenarioResult.result.is_feasible ? '#22C55E' : '#DC2626' },
+                    ].map((s, i) => (
+                      <div key={i} style={{ textAlign: 'center', padding: '8px 4px', background: '#fff', borderRadius: 8, border: '1px solid #BFDBFE' }}>
+                        <div style={{ fontSize: 16, fontWeight: 800, color: s.c, fontFamily: 'var(--mono)' }}>{s.v}</div>
+                        <div style={{ fontSize: 9, color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>{s.l}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Comparison with current plan */}
+                  {result && (
+                    <div style={{ padding: 10, background: '#fff', borderRadius: 8, border: '1px solid #BFDBFE', marginBottom: 8 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#1E40AF', marginBottom: 6 }}>📊 vs Current Plan</div>
+                      {(() => {
+                        const currReloc = result.total_people_relocated || 0;
+                        const scenReloc = scenarioResult.result.total_people_relocated || 0;
+                        const currUnmet = result.total_people_unmet || 0;
+                        const scenUnmet = scenarioResult.result.total_people_unmet || 0;
+                        const relocDiff = scenReloc - currReloc;
+                        const unmetDiff = scenUnmet - currUnmet;
+                        return (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: '#6B7280' }}>Relocated</span>
+                              <span style={{ fontWeight: 700, color: relocDiff >= 0 ? '#16A34A' : '#DC2626' }}>{relocDiff >= 0 ? '+' : ''}{relocDiff.toLocaleString()}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: '#6B7280' }}>Unmet need</span>
+                              <span style={{ fontWeight: 700, color: unmetDiff <= 0 ? '#16A34A' : '#DC2626' }}>{unmetDiff >= 0 ? '+' : ''}{unmetDiff.toLocaleString()}</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  {/* Scenario assignments preview */}
+                  {scenarioResult.result.assignments?.length > 0 && (
+                    <div style={{ maxHeight: 140, overflowY: 'auto' }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#1E40AF', marginBottom: 4 }}>Scenario Assignments ({scenarioResult.result.assignments.length})</div>
+                      {scenarioResult.result.assignments.slice(0, 5).map((a, i) => (
+                        <div key={i} style={{ padding: '5px 8px', background: '#fff', borderRadius: 6, border: '1px solid #BFDBFE', marginBottom: 4, fontSize: 11 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontWeight: 600, color: '#374151' }}>{getHabName(a.habitation_id)} → {getShelterName(a.shelter_id)}</span>
+                            <span style={{ fontFamily: 'var(--mono)', color: '#2563EB', fontWeight: 700 }}>{a.people_assigned.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      ))}
+                      {scenarioResult.result.assignments.length > 5 && (
+                        <div style={{ textAlign: 'center', fontSize: 10, color: '#6B7280', padding: 4 }}>+{scenarioResult.result.assignments.length - 5} more</div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Affected habitations */}
+              {scenarioResult.affected_habitations?.length > 0 && (
+                <div style={{ marginTop: 8, padding: 8, background: '#fff', borderRadius: 8, border: '1px solid #BFDBFE' }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: '#6B7280', marginBottom: 4 }}>Affected: {scenarioResult.affected_habitations.length} habitations</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {scenarioResult.affected_habitations.slice(0, 8).map(h => (
+                      <span key={h.id} style={{ padding: '1px 6px', borderRadius: 4, fontSize: 9, background: '#EFF6FF', color: '#1D4ED8', fontWeight: 500 }}>{h.name}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
           {/* === ALERTS & NOTIFICATIONS === */}

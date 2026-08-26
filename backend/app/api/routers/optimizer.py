@@ -91,6 +91,15 @@ async def re_solve_relocation(req: ReOptimizeRequest):
     if st.relocation_orders:
         order.hash_chain_previous = st.relocation_orders[-1].audit_hash
     st.relocation_orders.append(order)
+    persistence.save_relocation_order({
+        "order_id": order.order_id,
+        "audit_hash": order.audit_hash,
+        "hash_chain_previous": order.hash_chain_previous,
+        "issued_at": order.issued_at.isoformat(),
+        "issued_by": order.issued_by,
+        "district": "Chamoli",
+        "data": order.model_dump(),
+    })
 
     return {"result": result.model_dump(), "order": {
         "order_id": order.order_id, "audit_hash": order.audit_hash,

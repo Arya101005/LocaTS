@@ -75,6 +75,78 @@ def _auto_load_data():
         import traceback; traceback.print_exc()
 
 
+def _load_persisted_state():
+    """Load crowd reports, evacuees, and orders from Supabase on startup."""
+    if not persistence.is_configured:
+        return
+    try:
+        from backend.app.api.routers.citizen import _evacuees
+        reports = persistence.load_crowd_reports(limit=200)
+        for r in reports:
+            try:
+                from backend.app.models.domain import CrowdReport, HazardType
+                ht = r.get("hazard_type", "flood")
+                if isinstance(ht, str):
+                    try:
+                        ht = HazardType(ht)
+                    except ValueError:
+                        ht = HazardType.FLOOD
+                st.crowd_reports.append(CrowdReport(
+                    id=r.get("id", f"cr-{len(st.crowd_reports)+1:05d}"),
+                    reporter_id=r.get("reporter_id", "unknown"),
+                    hazard_type=ht,
+                    severity_estimate=float(r.get("severity_estimate", 0.5)),
+                    description=r.get("description", ""),
+                    location={"lat": float(r.get("lat", 30.40)), "lon": float(r.get("lon", 79.33))},
+                    timestamp=datetime.fromisoformat(r.get("timestamp", datetime.utcnow().isoformat())),
+                ))
+            except Exception:
+                pass
+        print(f"  [Persist] Loaded {len(reports)} crowd reports")
+
+        evacuees = persistence.load_evacuees()
+        for e in evacuees:
+            try:
+                from backend.app.models.domain import EvacueeRegistration
+                _evacuees.append(EvacueeRegistration(
+                    evacuee_id=e.get("evacuee_id", ""),
+                    name_hash=e.get("name_hash", ""),
+                    home_habitation_id=e.get("home_habitation_id"),
+                    age_range=e.get("age_range"),
+                    registered_shelter_id=e.get("registered_shelter_id", ""),
+                    status=e.get("status", "safe"),
+                    needs_medical=bool(e.get("needs_medical", False)),
+                    needs_accessibility=bool(e.get("needs_accessibility", False)),
+                    notes=e.get("notes", ""),
+                    registered_at=datetime.fromisoformat(e.get("registered_at", datetime.utcnow().isoformat())),
+                ))
+            except Exception:
+                pass
+        print(f"  [Persist] Loaded {len(evacuees)} evacuees")
+
+        orders = persistence.load_relocation_orders(limit=50)
+        for o in orders:
+            try:
+                from backend.app.models.domain import RelocationOrder, OptimizationResult
+                data = o.get("data", {})
+                if data:
+                    result = OptimizationResult(**data)
+                    order = RelocationOrder(
+                        order_id=o.get("order_id", ""),
+                        result=result,
+                        issued_by=o.get("issued_by", "system"),
+                        issued_at=datetime.fromisoformat(o.get("issued_at", datetime.utcnow().isoformat())),
+                    )
+                    order.audit_hash = o.get("audit_hash", "")
+                    order.hash_chain_previous = o.get("hash_chain_previous", "")
+                    st.relocation_orders.append(order)
+            except Exception:
+                pass
+        print(f"  [Persist] Loaded {len(orders)} relocation orders")
+    except Exception as e:
+        print(f"  [Persist] Load failed: {e}")
+
+
 def _rebuild_graph():
     st.graph_builder = CapacityGraphBuilder(population_safety_margin=0.15)
     st.graph_data = st.graph_builder.build(st.graph_data)
@@ -92,14 +164,13 @@ async def startup_event():
     except Exception as e:
         print(f"  Startup failed: {e}")
         import traceback; traceback.print_exc()
-    # Preload auth users into memory for instant login
+    _load_persisted_state()
     try:
         from backend.app.utils.local_auth import preload_users
         preload_users()
         print("  Auth: ready (users preloaded)")
     except Exception as e:
         print(f"  Auth init: skipped ({e})")
-    # Auto-create local_users table if Management API token is available
     try:
         from backend.app.utils.db_fix import _run_sql, _get_mgmt_token
         if _get_mgmt_token():

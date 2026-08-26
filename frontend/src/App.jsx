@@ -57,11 +57,7 @@ function LandingPage() {
         // React will re-render — AppContent sees user set and routes accordingly
       } else {
         await signup(email, password, name);
-        setSuccess('Account created successfully! Please sign in.');
-        setMode('login');
-        setEmail('');
-        setPassword('');
-        setName('');
+        setSuccess('Account created successfully! Welcome to LocaTS.');
       }
     } catch (err) { setError(err.message); }
     finally { setLoading(false); }

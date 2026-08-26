@@ -82,14 +82,6 @@ export function AuthProvider({ children }) {
   }, []);
 
   const signup = useCallback(async (email, password, name) => {
-    // Clear any stale tokens from previous sessions before signup
-    localStorage.removeItem('locats_token');
-    localStorage.removeItem('locats_role');
-    localStorage.removeItem('locats_user_email');
-    setToken(null);
-    setUser(null);
-    setProfile(null);
-    setStoredRole(null);
     const res = await fetch(`${API}/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -97,7 +89,17 @@ export function AuthProvider({ children }) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || data.error || 'Signup failed. Please try again.');
-    // Signup returns success — user must sign in explicitly
+    if (data.access_token) {
+      localStorage.setItem('locats_token', data.access_token);
+      localStorage.setItem('locats_user_email', data.user?.email || email);
+      setToken(data.access_token);
+      if (data.role) {
+        localStorage.setItem('locats_role', data.role);
+        setStoredRole(data.role);
+        setUser({ email: data.user?.email || email, id: data.user?.id });
+        setProfile({ role: data.role, email: data.user?.email || email, full_name: name || '' });
+      }
+    }
     return data;
   }, []);
 

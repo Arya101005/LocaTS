@@ -19,7 +19,7 @@ import hashlib
 import asyncio
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel, Field
 
 import backend.app.api.state as st
@@ -128,7 +128,7 @@ def _local_responder(query: str) -> str:
                     f"Total habitations monitored: {hab_count}\n\n"
                     f"Critical villages: {', '.join(k.split(':')[0] for k, _ in critical[:5])}\n"
                     f"Check the Dashboard map for detailed risk visualization.")
-        return f"{habitations_count} villages loaded. Run fusion scoring to see risk levels."
+        return f"{hab_count} villages loaded. Run fusion scoring to see risk levels."
 
     # How / system / feature questions
     if any(w in query for w in ("how", "work", "system", "feature", "explain")):
@@ -251,12 +251,24 @@ async def evacuation_routes():
 
 # ======================== SSE LIVE UPDATES ========================
 
+@router.get("/api/sse/status")
+async def sse_status():
+    """Lightweight status endpoint for polling (Vercel-compatible)."""
+    state_data = {"zones": len(st.static_zones), "reports": len(st.crowd_reports),
+             "result_hash": str(hash(str(st.optimizer._last_result.model_dump()))) if st.optimizer and st.optimizer._last_result else "none"}
+    return {"type": "status", "data": state_data}
+
+
 @router.get("/api/sse/stream")
 async def sse_stream():
-    """Server-Sent Events for live dashboard updates."""
+    """Server-Sent Events for live dashboard updates.
+    
+    NOTE: On Vercel serverless, infinite streams are killed after the
+    function timeout. Use /api/sse/status with polling instead.
+    """
     async def gen():
         last = ""
-        while True:
+        for _ in range(20):
             try:
                 state_data = {"zones": len(st.static_zones), "reports": len(st.crowd_reports),
                          "result_hash": str(hash(str(st.optimizer._last_result.model_dump()))) if st.optimizer and st.optimizer._last_result else "none"}
@@ -271,7 +283,8 @@ async def sse_stream():
             except Exception:
                 await asyncio.sleep(5)
     return StreamingResponse(gen(), media_type="text/event-stream",
-                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no",
+                                      "X-Vercel-Connection-Close": "true"})
 
 
 # ======================== GEOJSON DATA ========================
@@ -285,14 +298,14 @@ async def serve_live_geojson(data_type: str):
     if data_type == "habitations":
         features = [{"type": "Feature", "geometry": {"type": "Point", "coordinates": [h.location.lon, h.location.lat]},
                      "properties": {"id": h.id, "name": h.name, "population": h.population_estimate, "district": h.district}}
-                    for h in st.graph_data.habitations]
+                    for h in st.graph_data.habitations[:500]]
     elif data_type == "shelters":
         features = [{"type": "Feature", "geometry": {"type": "Point", "coordinates": [s.location.lon, s.location.lat]},
                      "properties": {"id": s.id, "name": s.name, "bed_capacity": s.bed_capacity,
                                     "beds_available": s.bed_capacity - s.beds_occupied, "is_active": s.is_active}}
-                    for s in st.graph_data.shelters]
+                    for s in st.graph_data.shelters[:500]]
     elif data_type == "roads":
-        for r in st.graph_data.road_segments[:5000]:
+        for r in st.graph_data.road_segments[:2000]:
             f = st.graph_data.get_habitation_by_id(r.from_node) or st.graph_data.get_shelter_by_id(r.from_node)
             t = st.graph_data.get_habitation_by_id(r.to_node) or st.graph_data.get_shelter_by_id(r.to_node)
             if f and t:
@@ -305,10 +318,10 @@ async def serve_live_geojson(data_type: str):
                                                                     z.center.lat if hasattr(z.center, "lat") else z.center.get("lat", 0)]},
                      "properties": {"id": z.id, "hazard_type": z.hazard_type.value, "severity": z.severity,
                                     "radius_km": z.radius_km}}
-                    for z in st.static_zones]
+                    for z in st.static_zones[:200]]
     else:
         raise HTTPException(404, f"Unknown data type: {data_type}")
-    return {"type": "FeatureCollection", "features": features}
+    return JSONResponse(content={"type": "FeatureCollection", "features": features}, headers={"Cache-Control": "public, max-age=60"})
 
 
 @router.get("/api/data/{filename}")

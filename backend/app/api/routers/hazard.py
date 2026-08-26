@@ -99,6 +99,17 @@ async def add_crowd_report(report: CrowdReportAdd):
         description=report.description,
         location={"lat": report.lat, "lon": report.lon}, timestamp=datetime.utcnow(),
     ))
+    persistence.save_crowd_report({
+        "id": report_id,
+        "reporter_id": report.reporter_id,
+        "hazard_type": report.hazard_type.value if hasattr(report.hazard_type, "value") else report.hazard_type,
+        "severity_estimate": report.severity_estimate,
+        "description": report.description,
+        "lat": report.lat,
+        "lon": report.lon,
+        "timestamp": datetime.utcnow().isoformat(),
+        "district": "Chamoli",
+    })
     return {"status": "accepted", "report_id": report_id,
             "note": "Report queued. Requires corroboration from >=3 independent sources."}
 

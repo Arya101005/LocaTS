@@ -39,6 +39,14 @@ async def dashboard_data():
         ],
         "sensor_readings_count": len(st.sensor_readings),
         "crowd_reports_count": len(st.crowd_reports),
+        "crowd_reports": [{
+            "id": r.id, "reporter_id": r.reporter_id,
+            "hazard_type": r.hazard_type.value if hasattr(r.hazard_type, 'value') else r.hazard_type,
+            "severity_estimate": r.severity_estimate,
+            "description": r.description,
+            "location": r.location,
+            "timestamp": r.timestamp.isoformat() if hasattr(r.timestamp, 'isoformat') else str(r.timestamp),
+        } for r in st.crowd_reports[-50:]],
         "capacity_summary": summary,
         "hazard_confidences": {
             k: {"confidence": v.confidence, "alert_level": v.alert_level.value}

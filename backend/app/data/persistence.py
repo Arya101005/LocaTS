@@ -377,6 +377,26 @@ class PersistenceLayer:
             logger.warning(f"  Load relocation orders failed: {e}")
             return []
 
+    def load_crowd_reports(self, limit: int = 100) -> list[dict]:
+        if not self.client:
+            return []
+        try:
+            result = self._table("crowd_reports").select("*").order("timestamp", desc=True).limit(limit).execute()
+            return result.data or []
+        except Exception as e:
+            logger.warning(f"  Load crowd reports failed: {e}")
+            return []
+
+    def load_evacuees(self) -> list[dict]:
+        if not self.client:
+            return []
+        try:
+            result = self._table("evacuees").select("*").execute()
+            return result.data or []
+        except Exception as e:
+            logger.warning(f"  Load evacuees failed: {e}")
+            return []
+
     # ------------------------------------------------------------------
     # Bulk operations for startup seeding
     # ------------------------------------------------------------------
