@@ -502,6 +502,31 @@ def update_user_role(user_id: str, new_role: str) -> dict:
     return {"status": "updated", "user_id": user_id, "new_role": new_role}
 
 
+def change_password(user_id: str, current_password: str, new_password: str) -> dict:
+    """Change a user's password. Requires current password verification."""
+    if len(new_password) < 6:
+        return {"error": "New password must be at least 6 characters."}
+
+    with _lock:
+        users = _read_users()
+        user = users.get(user_id)
+        if not user:
+            return {"error": "User not found."}
+
+        # Verify current password
+        if not _verify_password(current_password, user.get("password_hash", ""), user.get("salt", "")):
+            return {"error": "Current password is incorrect."}
+
+        # Set new password
+        new_hash, new_salt = _hash_password(new_password)
+        users[user_id]["password_hash"] = new_hash
+        users[user_id]["salt"] = new_salt
+        users[user_id]["updated_at"] = datetime.now(timezone.utc).isoformat()
+        _write_user(users[user_id])
+
+    return {"status": "updated", "message": "Password changed successfully."}
+
+
 def is_configured() -> bool:
     """Check if Supabase is available (auth works regardless)."""
     return _get_client() is not None

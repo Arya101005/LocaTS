@@ -482,6 +482,66 @@ function UserManagement({ token }) {
   );
 }
 
+function ChangePasswordModal({ token, onClose }) {
+  const [current, setCurrent] = useState('');
+  const [newPass, setNewPass] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(''); setSuccess('');
+    if (newPass !== confirm) { setError('New passwords do not match.'); return; }
+    if (newPass.length < 6) { setError('New password must be at least 6 characters.'); return; }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API}/auth/change-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ current_password: current, new_password: newPass }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Failed to change password.');
+      setSuccess('Password changed successfully!');
+      setCurrent(''); setNewPass(''); setConfirm('');
+    } catch (err) { setError(err.message); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={onClose}>
+      <div style={{ background: '#fff', borderRadius: 16, padding: 28, width: '100%', maxWidth: 380, boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }} onClick={e => e.stopPropagation()}>
+        <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16, color: '#111827' }}>Change Password</h3>
+        {error && <div style={{ padding: '8px 12px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, fontSize: 12, color: '#DC2626', marginBottom: 12 }}>{error}</div>}
+        {success && <div style={{ padding: '8px 12px', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8, fontSize: 12, color: '#16A34A', marginBottom: 12 }}>{success}</div>}
+        <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 4 }}>Current Password</label>
+            <input type="password" value={current} onChange={e => setCurrent(e.target.value)} required
+              style={{ width: '100%', padding: '9px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13 }} />
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 4 }}>New Password</label>
+            <input type="password" value={newPass} onChange={e => setNewPass(e.target.value)} required minLength={6}
+              style={{ width: '100%', padding: '9px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13 }} />
+          </div>
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 4 }}>Confirm New Password</label>
+            <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} required minLength={6}
+              style={{ width: '100%', padding: '9px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13 }} />
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="button" onClick={onClose} style={{ flex: 1, padding: '9px 0', border: '1px solid #E2E8F0', borderRadius: 8, background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+            <button type="submit" disabled={loading} style={{ flex: 1, padding: '9px 0', border: 'none', borderRadius: 8, background: '#2563EB', color: '#fff', fontSize: 13, fontWeight: 600, cursor: loading ? 'wait' : 'pointer', opacity: loading ? 0.7 : 1 }}>{loading ? 'Saving...' : 'Change Password'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function AppContent() {
   const { user, profile, loading, logout, token, role: authRole } = useAuth();
   const [dashboardData, setDashboardData] = useState(null);
@@ -489,6 +549,8 @@ function AppContent() {
   const [optimizing, setOptimizing] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [liveStatus, setLiveStatus] = useState(null);
+  const [showChangePass, setShowChangePass] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   // Route-based portal selection
   const path = window.location.pathname;
@@ -574,7 +636,7 @@ function AppContent() {
     return (
       <div style={{ minHeight: '100vh', background: '#F0F9F4' }}>
         <Suspense fallback={<div style={{ padding: 40, textAlign: 'center', color: '#94A3B8' }}>Loading...</div>}>
-          <CitizenPortal />
+          <CitizenPortal user={user} profile={profile} token={token} onLogout={logout} />
         </Suspense>
       </div>
     );
@@ -602,7 +664,25 @@ function AppContent() {
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: sseConnected ? '#22C55E' : reconnecting ? '#F59E0B' : '#DC2626' }} />
             <span style={{ fontSize: 11, fontWeight: 600, color: sseConnected ? '#16A34A' : reconnecting ? '#D97706' : '#DC2626' }}>{sseConnected ? 'Live' : reconnecting ? 'Reconnecting...' : 'Offline'}</span>
           </div>
-          <button className="btn btn-sm btn-secondary" onClick={logout} style={{ fontSize: 12, padding: '6px 14px' }}>Sign Out</button>
+          <div style={{ position: 'relative' }}>
+            <button onClick={() => setShowUserMenu(!showUserMenu)} style={{ fontSize: 12, padding: '6px 14px', border: '1px solid #E2E8F0', borderRadius: 8, background: '#fff', cursor: 'pointer', fontWeight: 600, color: '#374151', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            {showUserMenu && (
+              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: '#fff', border: '1px solid #E2E8F0', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.1)', minWidth: 160, zIndex: 100, overflow: 'hidden' }}>
+                <button onClick={() => { setShowUserMenu(false); setShowChangePass(true); }} style={{ width: '100%', padding: '10px 14px', border: 'none', background: 'none', textAlign: 'left', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, color: '#374151' }} onMouseEnter={e => e.target.style.background = '#F9FAFB'} onMouseLeave={e => e.target.style.background = 'none'}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2"><path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+                  Change Password
+                </button>
+                <div style={{ height: 1, background: '#F3F4F6' }} />
+                <button onClick={() => { setShowUserMenu(false); logout(); }} style={{ width: '100%', padding: '10px 14px', border: 'none', background: 'none', textAlign: 'left', fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, color: '#DC2626' }} onMouseEnter={e => e.target.style.background = '#FEF2F2'} onMouseLeave={e => e.target.style.background = 'none'}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                  Sign Out
+                </button>
+              </div>
+            )}
+          </div>
+          {showChangePass && <ChangePasswordModal token={token} onClose={() => setShowChangePass(false)} />}
         </div>
       </header>
 
@@ -718,8 +798,7 @@ function CitizenWrapper() {
   };
 
   return (
-    <Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F0F9F4' }}><div style={{ color: '#6B7280' }}>Loading...</div></div>}>
-      <CitizenPortal user={user} profile={profile} onLogout={handleLogout} />
+    <Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F0F9F4' }}><div style={{ color: '#6B7280' }}>Loading...</div></div>}>          <CitizenPortal user={user} profile={profile} token={token} onLogout={handleLogout} />
     </Suspense>
   );
 }

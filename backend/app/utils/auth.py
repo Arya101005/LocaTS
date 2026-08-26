@@ -41,6 +41,7 @@ from backend.app.utils.local_auth import (
     get_user_by_email,
     list_users as local_list_users,
     update_user_role,
+    change_password as local_change_password,
     is_configured,
 )
 
@@ -105,6 +106,11 @@ class AuthSignup(BaseModel):
     email: str
     password: str
     name: str = ""
+
+
+class AuthChangePassword(BaseModel):
+    current_password: str
+    new_password: str
 
 
 def create_auth_routes(app):
@@ -286,6 +292,21 @@ END $$;
             "message": "Auth system is operational.",
             "configured": is_configured(),
         }
+
+    @app.post("/api/auth/change-password")
+    async def auth_change_password(req: AuthChangePassword, user=Depends(require_auth)):
+        """Change the current user's password."""
+        try:
+            result = local_change_password(user["sub"], req.current_password, req.new_password)
+            if "error" in result:
+                raise HTTPException(status_code=400, detail=result["error"])
+            return result
+        except HTTPException:
+            raise
+        except Exception as e:
+            if logger:
+                logger.error(f"Change password failed: {e}")
+            raise HTTPException(status_code=500, detail="Failed to change password.")
 
     @app.post("/api/auth/logout")
     async def auth_logout(user=Depends(require_auth)):

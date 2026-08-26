@@ -61,6 +61,52 @@ const LANG = {
   },
 };
 
+function ChangePasswordForm({ token, onDone }) {
+  const [current, setCurrent] = useState('');
+  const [newPass, setNewPass] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(''); setSuccess('');
+    if (newPass !== confirm) { setError('Passwords do not match.'); return; }
+    if (newPass.length < 6) { setError('Min 6 characters.'); return; }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API}/auth/change-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ current_password: current, new_password: newPass }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Failed.');
+      setSuccess('Password changed!');
+      setTimeout(() => onDone(), 1500);
+    } catch (err) { setError(err.message); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      {error && <div style={{ padding: '6px 10px', background: '#FEF2F2', borderRadius: 6, fontSize: 11, color: '#DC2626', marginBottom: 10 }}>{error}</div>}
+      {success && <div style={{ padding: '6px 10px', background: '#F0FDF4', borderRadius: 6, fontSize: 11, color: '#16A34A', marginBottom: 10 }}>{success}</div>}
+      <input type="password" value={current} onChange={e => setCurrent(e.target.value)} placeholder="Current password" required
+        style={{ width: '100%', padding: '9px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, marginBottom: 8 }} />
+      <input type="password" value={newPass} onChange={e => setNewPass(e.target.value)} placeholder="New password" required minLength={6}
+        style={{ width: '100%', padding: '9px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, marginBottom: 8 }} />
+      <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} placeholder="Confirm new password" required minLength={6}
+        style={{ width: '100%', padding: '9px 12px', border: '1px solid #E2E8F0', borderRadius: 8, fontSize: 13, marginBottom: 12 }} />
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button type="button" onClick={onDone} style={{ flex: 1, padding: '9px 0', border: '1px solid #E2E8F0', borderRadius: 8, background: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+        <button type="submit" disabled={loading} style={{ flex: 1, padding: '9px 0', border: 'none', borderRadius: 8, background: '#16A34A', color: '#fff', fontSize: 12, fontWeight: 600, cursor: loading ? 'wait' : 'pointer', opacity: loading ? 0.7 : 1 }}>{loading ? 'Saving...' : 'Save'}</button>
+      </div>
+    </form>
+  );
+}
+
 export default function CitizenPortal({ user, profile, onLogout }) {
   const [lang, setLang] = useState(() => localStorage.getItem('locats_lang') || 'en');
   const [villages, setVillages] = useState([]);
@@ -79,6 +125,7 @@ export default function CitizenPortal({ user, profile, onLogout }) {
   const [helpSending, setHelpSending] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState(null);
+  const [showChangePass, setShowChangePass] = useState(false);
 
   const t = LANG[lang];
 
@@ -115,11 +162,16 @@ export default function CitizenPortal({ user, profile, onLogout }) {
     setGpsLoading(true); setGpsError(null);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const { latitude, longitude } = pos.coords;
+        const { latitude: lat, longitude: lon } = pos.coords;
+        // Haversine distance to find nearest village
+        const R = 6371;
         let nearest = null, minDist = Infinity;
         for (const v of villages) {
-          const dist = Math.abs(v.population - 1000);
-          if (dist < minDist) { minDist = dist; nearest = v; }
+          const dLat = (v.lat - lat) * Math.PI / 180;
+          const dLon = (v.lon - lon) * Math.PI / 180;
+          const a = Math.sin(dLat/2)**2 + Math.cos(lat*Math.PI/180) * Math.cos(v.lat*Math.PI/180) * Math.sin(dLon/2)**2;
+          const d = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+          if (d < minDist) { minDist = d; nearest = v; }
         }
         if (nearest) { setSelectedVillage(nearest.id); setHelpSent(false); }
         setGpsLoading(false);
@@ -164,17 +216,24 @@ export default function CitizenPortal({ user, profile, onLogout }) {
     } catch (e) {}
   }, []);
 
+  const [familyAge, setFamilyAge] = useState('');
+  const [familyVillage, setFamilyVillage] = useState('');
+
   const searchFamily = useCallback(async () => {
     if (!familyQuery.trim()) return;
     try {
       const res = await fetch(`${API}/family/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ search_name: familyQuery }),
+        body: JSON.stringify({
+          search_name: familyQuery,
+          age_range: familyAge || undefined,
+          home_habitation_id: familyVillage || undefined,
+        }),
       });
       setFamilyResults(await res.json());
     } catch (e) { setFamilyResults({ results: [], message: 'Search unavailable' }); }
-  }, [familyQuery]);
+  }, [familyQuery, familyAge, familyVillage]);
 
   const statusColor = (level) => ({ critical: '#DC2626', warning: '#F59E0B', normal: '#22C55E' }[level] || '#94A3B8');
   const statusBg = (level) => ({ critical: '#FEF2F2', warning: '#FFFBEB', normal: '#F0FDF4' }[level] || '#F8FAFC');
@@ -215,6 +274,7 @@ export default function CitizenPortal({ user, profile, onLogout }) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 11, color: '#6B7280' }}>{profile?.full_name || user?.email}</span>
+          {token && <button onClick={() => setShowChangePass(true)} style={{ background: 'none', border: 'none', color: '#94A3B8', fontSize: 11, cursor: 'pointer', fontWeight: 500 }}>Change Password</button>}
           <button onClick={() => { onLogout?.(); window.location.href = '/'; }} style={{ background: 'none', border: 'none', color: '#94A3B8', fontSize: 11, cursor: 'pointer', fontWeight: 500 }}>{t.signOut}</button>
         </div>
       </div>
@@ -359,11 +419,26 @@ export default function CitizenPortal({ user, profile, onLogout }) {
           <div>
             <h2 style={{ fontSize: 18, fontWeight: 800, color: '#111827', marginBottom: 4 }}>{t.familySearch}</h2>
             <p style={{ fontSize: 12, color: '#94A3B8', marginBottom: 14 }}>Find family members across shelters</p>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
               <input value={familyQuery} onChange={e => setFamilyQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && searchFamily()}
                 placeholder="Enter person's name" style={{ flex: 1, padding: '11px 14px', borderRadius: 10, border: '1px solid #D1D5DB', fontSize: 13, background: '#fff' }} />
               <button onClick={searchFamily} disabled={!familyQuery.trim()}
                 style={{ padding: '11px 18px', borderRadius: 10, border: 'none', background: '#2563EB', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Search</button>
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+              <select value={familyAge} onChange={e => setFamilyAge(e.target.value)}
+                style={{ flex: 1, padding: '9px 12px', borderRadius: 10, border: '1px solid #D1D5DB', fontSize: 12, background: '#fff', color: '#6B7280' }}>
+                <option value="">Any age group</option>
+                <option value="child">Child (0-12)</option>
+                <option value="teen">Teen (13-17)</option>
+                <option value="adult">Adult (18-59)</option>
+                <option value="senior">Senior (60+)</option>
+              </select>
+              <select value={familyVillage} onChange={e => setFamilyVillage(e.target.value)}
+                style={{ flex: 1, padding: '9px 12px', borderRadius: 10, border: '1px solid #D1D5DB', fontSize: 12, background: '#fff', color: '#6B7280' }}>
+                <option value="">Any village</option>
+                {villages.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+              </select>
             </div>
             {familyResults && (
               <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', padding: 14 }}>
@@ -382,6 +457,16 @@ export default function CitizenPortal({ user, profile, onLogout }) {
           </div>
         )}
       </div>
+
+      {/* Change Password Modal */}
+      {showChangePass && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }} onClick={() => setShowChangePass(false)}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 24, maxWidth: 340, width: '100%' }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 14 }}>Change Password</h3>
+            <ChangePasswordForm token={token} onDone={() => setShowChangePass(false)} />
+          </div>
+        </div>
+      )}
 
       {/* SOS Confirmation Dialog */}
       {helpConfirm && (
