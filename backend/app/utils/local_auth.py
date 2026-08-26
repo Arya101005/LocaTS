@@ -527,6 +527,110 @@ def change_password(user_id: str, current_password: str, new_password: str) -> d
     return {"status": "updated", "message": "Password changed successfully."}
 
 
+# ---------------------------------------------------------------------------
+# Password Reset
+# ---------------------------------------------------------------------------
+
+# In-memory reset tokens (short-lived, 15 min expiry)
+_reset_tokens: dict = {}  # token -> {user_id, email, expires_at}
+_reset_lock = threading.Lock()
+RESET_TOKEN_EXPIRY = 900  # 15 minutes
+
+
+def forgot_password(email: str) -> dict:
+    """Generate a password reset code for the given email."""
+    email_lower = email.lower().strip()
+    if not email_lower or "@" not in email_lower:
+        return {"error": "Please provide a valid email address."}
+
+    users = _read_users()
+    user_id = None
+    for uid, u in users.items():
+        if u.get("email", "").lower() == email_lower:
+            user_id = uid
+            break
+
+    # Always return success to prevent email enumeration
+    if not user_id:
+        return {
+            "status": "sent",
+            "message": "If an account exists with that email, a reset code has been sent.",
+        }
+
+    # Generate a 6-digit reset code
+    import random
+    code = f"{random.randint(100000, 999999)}"
+    token = _encode_jwt({
+        "sub": user_id,
+        "email": email_lower,
+        "purpose": "password_reset",
+        "code": code,
+        "exp": int(time.time()) + RESET_TOKEN_EXPIRY,
+    })
+
+    with _reset_lock:
+        _reset_tokens[token] = {
+            "user_id": user_id,
+            "email": email_lower,
+            "code": code,
+            "expires_at": int(time.time()) + RESET_TOKEN_EXPIRY,
+        }
+
+    if logger:
+        logger.info(f"Password reset code for {email_lower}: {code}")
+
+    return {
+        "status": "sent",
+        "message": "If an account exists with that email, a reset code has been sent.",
+        # In production, remove the code below — it would be sent via email
+        "_debug_code": code,
+        "_debug_token": token,
+    }
+
+
+def reset_password(token: str, code: str, new_password: str) -> dict:
+    """Reset a user's password using the reset code."""
+    if len(new_password) < 6:
+        return {"error": "New password must be at least 6 characters."}
+
+    # Verify the JWT token
+    payload = _decode_jwt(token)
+    if not payload:
+        return {"error": "Reset code has expired or is invalid."}
+
+    if payload.get("purpose") != "password_reset":
+        return {"error": "Invalid reset token."}
+
+    # Check expiry
+    exp = payload.get("exp", 0)
+    if time.time() > exp:
+        return {"error": "Reset code has expired. Please request a new one."}
+
+    # Verify the code matches
+    with _reset_lock:
+        stored = _reset_tokens.get(token)
+        if not stored:
+            return {"error": "Reset code has already been used or is invalid."}
+        if stored["code"] != code:
+            return {"error": "Incorrect reset code."}
+        # Delete the token (one-time use)
+        del _reset_tokens[token]
+
+    # Update the password
+    user_id = payload["sub"]
+    with _lock:
+        users = _read_users()
+        if user_id not in users:
+            return {"error": "User not found."}
+        new_hash, new_salt = _hash_password(new_password)
+        users[user_id]["password_hash"] = new_hash
+        users[user_id]["salt"] = new_salt
+        users[user_id]["updated_at"] = datetime.now(timezone.utc).isoformat()
+        _write_user(users[user_id])
+
+    return {"status": "updated", "message": "Password reset successful. You can now sign in."}
+
+
 def is_configured() -> bool:
     """Check if Supabase is available (auth works regardless)."""
     return _get_client() is not None

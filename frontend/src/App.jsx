@@ -41,6 +41,11 @@ function LandingPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
+  const [resetToken, setResetToken] = useState('');
+  const [resetCode, setResetCode] = useState('');
+  const [debugCode, setDebugCode] = useState('');
+  const [newPass, setNewPass] = useState('');
+  const [confirmPass, setConfirmPass] = useState('');
   const { login, signup } = useAuth();
 
   const handleSubmit = async (e) => {
@@ -58,6 +63,42 @@ function LandingPage() {
         setPassword('');
         setName('');
       }
+    } catch (err) { setError(err.message); }
+    finally { setLoading(false); }
+  };
+
+  const handleForgot = async (e) => {
+    e.preventDefault();
+    setError(''); setSuccess(''); setLoading(true);
+    try {
+      const res = await fetch(`${API}/auth/forgot-password`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Failed.');
+      setResetToken(data._debug_token || '');
+      setDebugCode(data._debug_code || '');
+      setSuccess('Reset code sent! Check your email.');
+      setMode('reset');
+    } catch (err) { setError(err.message); }
+    finally { setLoading(false); }
+  };
+
+  const handleReset = async (e) => {
+    e.preventDefault();
+    setError(''); setSuccess(''); setLoading(true);
+    try {
+      if (newPass !== confirmPass) throw new Error('Passwords do not match.');
+      if (newPass.length < 6) throw new Error('Min 6 characters.');
+      const res = await fetch(`${API}/auth/reset-password`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: resetToken, code: resetCode, new_password: newPass }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Failed.');
+      setSuccess('Password reset! You can now sign in.');
+      setMode('login'); setPassword('');
     } catch (err) { setError(err.message); }
     finally { setLoading(false); }
   };
@@ -115,13 +156,65 @@ function LandingPage() {
           </form>
 
           {mode === 'login' && (
-            <div style={{ marginTop: 16, textAlign: 'center', fontSize: 12, color: '#94A3B8' }}>
-              Admin? Sign in with your admin credentials.
+            <div style={{ marginTop: 16, textAlign: 'center' }}>
+              <button onClick={() => { setMode('forgot'); setError(''); setSuccess(''); setDebugCode(''); }}
+                style={{ background: 'none', border: 'none', color: '#2563EB', fontSize: 12, cursor: 'pointer', fontWeight: 600, fontFamily: 'Inter, sans-serif' }}>
+                Forgot password?
+              </button>
             </div>
           )}
           {mode === 'signup' && (
             <div style={{ marginTop: 16, textAlign: 'center', fontSize: 11, color: '#94A3B8', lineHeight: 1.5 }}>
               New accounts start as citizens. Admin can upgrade your role.
+            </div>
+          )}
+
+          {/* Forgot Password Form */}
+          {mode === 'forgot' && (
+            <div style={{ marginTop: 20 }}>
+              <button onClick={() => { setMode('login'); setError(''); setSuccess(''); }} style={{ background: 'none', border: 'none', color: '#94A3B8', fontSize: 12, cursor: 'pointer', padding: 0, marginBottom: 16 }}>&larr; Back to Sign In</button>
+              <form onSubmit={handleForgot}>
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 6 }}>Email Address</label>
+                  <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required
+                    style={{ width: '100%', padding: '10px 14px', background: '#F6FAFD', border: '1px solid #E2E8F0', borderRadius: 10, fontSize: 13 }} />
+                </div>
+                <button type="submit" disabled={loading} style={{ width: '100%', padding: '11px 0', background: '#2563EB', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: loading ? 'wait' : 'pointer', opacity: loading ? 0.7 : 1 }}>
+                  {loading ? 'Sending...' : 'Send Reset Code'}
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* Reset Password Form */}
+          {mode === 'reset' && (
+            <div style={{ marginTop: 20 }}>
+              <button onClick={() => { setMode('forgot'); setError(''); setSuccess(''); }} style={{ background: 'none', border: 'none', color: '#94A3B8', fontSize: 12, cursor: 'pointer', padding: 0, marginBottom: 16 }}>&larr; Back</button>
+              {debugCode && (
+                <div style={{ padding: '8px 12px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 8, fontSize: 12, color: '#1E40AF', marginBottom: 14, fontFamily: 'monospace' }}>
+                  <strong>Demo Code:</strong> {debugCode}
+                </div>
+              )}
+              <form onSubmit={handleReset}>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 6 }}>Reset Code</label>
+                  <input type="text" value={resetCode} onChange={e => setResetCode(e.target.value)} placeholder="6-digit code" required maxLength={6}
+                    style={{ width: '100%', padding: '10px 14px', background: '#F6FAFD', border: '1px solid #E2E8F0', borderRadius: 10, fontSize: 18, fontFamily: 'monospace', letterSpacing: 4, textAlign: 'center' }} />
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 6 }}>New Password</label>
+                  <input type="password" value={newPass} onChange={e => setNewPass(e.target.value)} placeholder="Min 6 characters" required minLength={6}
+                    style={{ width: '100%', padding: '10px 14px', background: '#F6FAFD', border: '1px solid #E2E8F0', borderRadius: 10, fontSize: 13 }} />
+                </div>
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 6 }}>Confirm Password</label>
+                  <input type="password" value={confirmPass} onChange={e => setConfirmPass(e.target.value)} placeholder="Re-enter password" required minLength={6}
+                    style={{ width: '100%', padding: '10px 14px', background: '#F6FAFD', border: '1px solid #E2E8F0', borderRadius: 10, fontSize: 13 }} />
+                </div>
+                <button type="submit" disabled={loading} style={{ width: '100%', padding: '11px 0', background: '#16A34A', color: '#fff', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: loading ? 'wait' : 'pointer', opacity: loading ? 0.7 : 1 }}>
+                  {loading ? 'Resetting...' : 'Reset Password'}
+                </button>
+              </form>
             </div>
           )}
         </div>

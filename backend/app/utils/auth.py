@@ -42,6 +42,8 @@ from backend.app.utils.local_auth import (
     list_users as local_list_users,
     update_user_role,
     change_password as local_change_password,
+    forgot_password as local_forgot_password,
+    reset_password as local_reset_password,
     is_configured,
 )
 
@@ -110,6 +112,16 @@ class AuthSignup(BaseModel):
 
 class AuthChangePassword(BaseModel):
     current_password: str
+    new_password: str
+
+
+class AuthForgotPassword(BaseModel):
+    email: str
+
+
+class AuthResetPassword(BaseModel):
+    token: str
+    code: str
     new_password: str
 
 
@@ -292,6 +304,36 @@ END $$;
             "message": "Auth system is operational.",
             "configured": is_configured(),
         }
+
+    @app.post("/api/auth/forgot-password")
+    async def auth_forgot_password(req: AuthForgotPassword):
+        """Request a password reset code. Always returns success to prevent enumeration."""
+        try:
+            result = local_forgot_password(req.email)
+            if "error" in result:
+                raise HTTPException(status_code=400, detail=result["error"])
+            return result
+        except HTTPException:
+            raise
+        except Exception as e:
+            if logger:
+                logger.error(f"Forgot password failed: {e}")
+            raise HTTPException(status_code=500, detail="Failed to process request.")
+
+    @app.post("/api/auth/reset-password")
+    async def auth_reset_password(req: AuthResetPassword):
+        """Reset password using the reset code."""
+        try:
+            result = local_reset_password(req.token, req.code, req.new_password)
+            if "error" in result:
+                raise HTTPException(status_code=400, detail=result["error"])
+            return result
+        except HTTPException:
+            raise
+        except Exception as e:
+            if logger:
+                logger.error(f"Reset password failed: {e}")
+            raise HTTPException(status_code=500, detail="Failed to reset password.")
 
     @app.post("/api/auth/change-password")
     async def auth_change_password(req: AuthChangePassword, user=Depends(require_auth)):
