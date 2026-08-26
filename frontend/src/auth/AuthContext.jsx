@@ -15,50 +15,49 @@ export function AuthProvider({ children }) {
   const [storedRole, setStoredRole] = useState(() => localStorage.getItem('locats_role'));
   const [loading, setLoading] = useState(true);
 
+  // Try to restore user from localStorage for instant render (no network call)
+  const cachedUser = localStorage.getItem('locats_user_email');
+  const cachedRole = localStorage.getItem('locats_role');
+
   const fetchProfile = useCallback(async (accessToken) => {
     try {
-      // Fetch /me and /profile in parallel
       const headers = { 'Authorization': `Bearer ${accessToken}` };
-      const [meRes, profRes] = await Promise.all([
-        fetch(`${API}/auth/me`, { headers }),
-        fetch(`${API}/auth/profile`, { headers }),
-      ]);
-      if (!meRes.ok) {
-        // Token invalid — clear it
+      const res = await fetch(`${API}/auth/me`, { headers });
+      if (!res.ok) {
         localStorage.removeItem('locats_token');
         setToken(null);
         setUser(null);
         setProfile(null);
         return false;
       }
-      const meData = await meRes.json();
+      const meData = await res.json();
       setUser(meData.user);
-
-      if (profRes.ok) {
-        const pdata = await profRes.json();
-        setProfile(pdata);
-      } else {
-        // Fallback: determine role from email
-        const email = meData.user?.email || '';
-        setProfile({ role: email.includes('admin') ? 'admin' : 'operator', full_name: email, email });
-      }
+      setProfile({ role: cachedRole || meData.user?.role || 'citizen', email: meData.user?.email || '', full_name: '' });
       return true;
     } catch {
       setUser(null);
       setProfile(null);
       return false;
     }
-  }, []);
+  }, [cachedRole]);
 
   useEffect(() => {
-    // Skip profile fetch on landing page — show login instantly
     const isLandingPage = window.location.pathname === '/';
     if (token && !isLandingPage) {
-      fetchProfile(token).finally(() => setLoading(false));
+      // If we have cached user info, use it instantly — verify token in background
+      if (cachedUser && cachedRole) {
+        setUser({ email: cachedUser });
+        setProfile({ role: cachedRole, email: cachedUser, full_name: '' });
+        setLoading(false);
+        // Verify token in background (don't block UI)
+        fetchProfile(token).catch(() => {});
+      } else {
+        fetchProfile(token).finally(() => setLoading(false));
+      }
     } else {
       setLoading(false);
     }
-  }, [token, fetchProfile]);
+  }, []);
 
   const login = useCallback(async (email, password) => {
     const res = await fetch(`${API}/auth/login`, {
@@ -67,15 +66,17 @@ export function AuthProvider({ children }) {
       body: JSON.stringify({ email, password }),
     });
     const data = await res.json();
-    if (data.error) throw new Error(data.error);
+    if (!res.ok) throw new Error(data.detail || data.error || 'Login failed. Please try again.');
     if (!data.access_token) throw new Error('No token received from server');
     localStorage.setItem('locats_token', data.access_token);
+    localStorage.setItem('locats_user_email', data.user?.email || email);
     setToken(data.access_token);
     // Store role immediately — no need to wait for profile fetch
     if (data.role) {
       localStorage.setItem('locats_role', data.role);
       setStoredRole(data.role);
-      setProfile({ role: data.role, email, full_name: email });
+      setUser({ email: data.user?.email || email, id: data.user?.id });
+      setProfile({ role: data.role, email: data.user?.email || email, full_name: '' });
     }
     return data;
   }, []);
@@ -84,6 +85,7 @@ export function AuthProvider({ children }) {
     // Clear any stale tokens from previous sessions before signup
     localStorage.removeItem('locats_token');
     localStorage.removeItem('locats_role');
+    localStorage.removeItem('locats_user_email');
     setToken(null);
     setUser(null);
     setProfile(null);
@@ -94,14 +96,15 @@ export function AuthProvider({ children }) {
       body: JSON.stringify({ email, password, name }),
     });
     const data = await res.json();
-    if (data.error) throw new Error(data.error);
-    // Signup NEVER stores tokens — user must sign in explicitly
+    if (!res.ok) throw new Error(data.detail || data.error || 'Signup failed. Please try again.');
+    // Signup returns success — user must sign in explicitly
     return data;
   }, []);
 
   const logout = useCallback(() => {
     localStorage.removeItem('locats_token');
     localStorage.removeItem('locats_role');
+    localStorage.removeItem('locats_user_email');
     setToken(null);
     setUser(null);
     setProfile(null);
@@ -121,7 +124,7 @@ export function AuthProvider({ children }) {
     } catch (e) { return { error: e.message }; }
   }, [token, fetchProfile]);
 
-  const role = profile?.role || storedRole || (user?.email === 'pranavarya2005@gmail.com' ? 'admin' : 'citizen');
+  const role = profile?.role || storedRole || 'citizen';
   const isAdmin = role === 'admin';
   const isOperator = role === 'operator' || role === 'admin';
   const isViewer = role === 'viewer';

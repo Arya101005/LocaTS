@@ -49,20 +49,14 @@ function LandingPage() {
     try {
       if (mode === 'login') {
         await login(email, password);
-        // Determine role from email immediately — pranavarya2005@gmail.com is admin
-        const isAdminEmail = email.toLowerCase() === 'pranavarya2005@gmail.com';
-        window.location.href = isAdminEmail ? '/admin' : '/citizen';
+        // React will re-render — AppContent sees user set and routes accordingly
       } else {
-        const res = await signup(email, password, name);
-        if (res.error) {
-          setError(res.error);
-        } else {
-          setSuccess('Account created successfully! Please sign in.');
-          setMode('login');
-          setEmail('');
-          setPassword('');
-          setName('');
-        }
+        await signup(email, password, name);
+        setSuccess('Account created successfully! Please sign in.');
+        setMode('login');
+        setEmail('');
+        setPassword('');
+        setName('');
       }
     } catch (err) { setError(err.message); }
     finally { setLoading(false); }
@@ -181,37 +175,86 @@ function ShelterManagement({ data }) {
 /* ---- Crowd Reports Queue ---- */
 function CrowdReportsQueue() {
   const [reports, setReports] = useState([]);
+  const [confidences, setConfidences] = useState([]);
 
   useEffect(() => {
     fetch(`${API}/dashboard`).then(r => r.json()).then(d => {
-      setReports(Object.entries(d.hazard_confidences || {}).map(([k, v]) => ({ key: k, ...v })).slice(0, 30));
+      setReports(d.crowd_reports || []);
+      setConfidences(Object.entries(d.hazard_confidences || {}).map(([k, v]) => ({ key: k, ...v })).slice(0, 30));
     }).catch(() => {});
   }, []);
 
+  const hazardIcon = (type) => ({ flood: '🌊', landslide: '🏔️', seismic: '🌍', fire: '🔥' }[type] || '⚠️');
+  const severityColor = (sev) => sev >= 0.7 ? '#DC2626' : sev >= 0.4 ? '#F59E0B' : '#22C55E';
+
   return (
-    <div style={{ padding: 28, maxWidth: 800, overflow: 'auto', height: '100%' }}>
+    <div style={{ padding: 28, maxWidth: 900, overflow: 'auto', height: '100%' }}>
       <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Crowd Reports Queue</h2>
-      <p style={{ fontSize: 13, color: '#94A3B8', marginBottom: 24 }}>Incoming hazard reports pending corroboration.</p>
-      <div className="card">
+      <p style={{ fontSize: 13, color: '#94A3B8', marginBottom: 24 }}>Incoming hazard reports from citizens, pending corroboration.</p>
+
+      {/* Actual crowd reports */}
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div style={{ padding: '12px 16px', background: '#F6FAFD', borderBottom: '1px solid #E2E8F0', fontWeight: 700, fontSize: 13, color: '#374151' }}>
+          Citizen Reports ({reports.length})
+        </div>
         {reports.length === 0 ? (
-          <div style={{ padding: 40, textAlign: 'center', color: '#94A3B8' }}>No crowd reports yet. Reports appear here when citizens submit hazard observations.</div>
+          <div style={{ padding: 40, textAlign: 'center', color: '#94A3B8' }}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>📡</div>
+            <div>No crowd reports yet.</div>
+            <div style={{ fontSize: 12, marginTop: 4 }}>Reports appear here when citizens submit hazard observations.</div>
+          </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 16 }}>
-            {reports.slice(0, 20).map((r, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: '#F9FAFB', borderRadius: 8, border: '1px solid #F3F4F6' }}>
-                <div>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>{r.key?.split(':')[0]}</span>
-                  <span style={{ fontSize: 11, color: '#94A3B8', marginLeft: 8 }}>{r.key?.split(':')[1]}</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 12 }}>
+            {reports.slice().reverse().slice(0, 25).map((r, i) => (
+              <div key={r.id || i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: '#F9FAFB', borderRadius: 8, border: '1px solid #F3F4F6' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 18 }}>{hazardIcon(r.hazard_type)}</span>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>
+                      {r.hazard_type?.charAt(0).toUpperCase() + r.hazard_type?.slice(1)} Report
+                      <span style={{ fontWeight: 400, color: '#94A3B8', marginLeft: 8 }}>#{r.id}</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 2 }}>
+                      {r.description || 'No description'}
+                      {r.reporter_id && <span style={{ marginLeft: 8 }}>from {r.reporter_id}</span>}
+                    </div>
+                  </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: '#374151' }}>{(r.confidence * 100).toFixed(0)}%</span>
-                  <span className={`badge badge-${r.alert_level === 'normal' ? 'safe' : r.alert_level === 'advisory' ? 'warn' : 'danger'}`}>{r.alert_level}</span>
+                  <div style={{ width: 50, height: 6, background: '#E5E7EB', borderRadius: 3, overflow: 'hidden' }}>
+                    <div style={{ width: `${(r.severity_estimate || 0) * 100}%`, height: '100%', background: severityColor(r.severity_estimate || 0), borderRadius: 3 }} />
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: severityColor(r.severity_estimate || 0) }}>{((r.severity_estimate || 0) * 100).toFixed(0)}%</span>
+                  <span style={{ fontSize: 10, color: '#94A3B8' }}>{r.timestamp?.split('T')[0] || ''}</span>
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Hazard fusion confidences as context */}
+      {confidences.length > 0 && (
+        <div className="card">
+          <div style={{ padding: '12px 16px', background: '#F6FAFD', borderBottom: '1px solid #E2E8F0', fontWeight: 700, fontSize: 13, color: '#374151' }}>
+            Hazard Fusion Scores (auto-generated from reports + sensors)
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: 12 }}>
+            {confidences.map((c, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 14px', background: '#F9FAFB', borderRadius: 8, border: '1px solid #F3F4F6' }}>
+                <div>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>{c.key?.split(':')[0]}</span>
+                  <span style={{ fontSize: 11, color: '#94A3B8', marginLeft: 8 }}>{c.key?.split(':')[1]}</span>
+                </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#374151' }}>{(c.confidence * 100).toFixed(0)}%</span>
+                  <span className={`badge badge-${c.alert_level === 'normal' ? 'safe' : c.alert_level === 'advisory' ? 'warn' : 'danger'}`}>{c.alert_level}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -320,15 +363,18 @@ function UserManagement({ token }) {
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
   const [fetchError, setFetchError] = useState(null);
+  const [serverNote, setServerNote] = useState(null);
 
   const fetchUsers = useCallback(async () => {
     setFetchError(null);
+    setServerNote(null);
     try {
       const res = await fetch(`${API}/auth/users`, { headers: { 'Authorization': `Bearer ${token}` } });
       if (res.status === 403) { setFetchError('You do not have admin access to view users.'); setUsers([]); return; }
       if (!res.ok) { setFetchError(`Failed to load users (HTTP ${res.status})`); setUsers([]); return; }
       const data = await res.json();
       setUsers(data.users || []);
+      if (data.note) setServerNote(data.note);
     } catch (e) { setFetchError('Could not connect to server.'); }
     finally { setLoading(false); }
   }, [token]);
@@ -377,6 +423,15 @@ function UserManagement({ token }) {
           {fetchError}
         </div>
       )}
+      {serverNote && !fetchError && (
+        <div style={{ padding: '12px 16px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 10, marginBottom: 16, color: '#92400E', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          <div>
+            <div style={{ fontWeight: 600, marginBottom: 2 }}>{serverNote}</div>
+            <div style={{ fontSize: 12, opacity: 0.8 }}>This may require running the SQL setup in your Supabase dashboard.</div>
+          </div>
+        </div>
+      )}
       {loading ? (
         <div style={{ padding: 40, textAlign: 'center', color: '#94A3B8' }}>Loading users...</div>
       ) : (
@@ -402,7 +457,7 @@ function UserManagement({ token }) {
                       className="form-select"
                       value={u.role}
                       onChange={e => updateRole(u.id, e.target.value)}
-                      disabled={updatingId === u.id || u.email === 'pranavarya2005@gmail.com'}
+                      disabled={updatingId === u.id}
                       style={{ padding: '6px 10px', fontSize: 12, borderRadius: 8, border: '1px solid #E2E8F0' }}
                     >
                       <option value="citizen">👤 Citizen</option>
@@ -489,19 +544,24 @@ function AppContent() {
   // Not logged in — show landing page with login/signup
   // Also, if logged in user is on landing page, redirect based on role
   if (!user) {
-    // If we have a token in localStorage, try to redirect
+    // If we have a token in localStorage, try to verify it (don't block UI)
     const savedToken = localStorage.getItem('locats_token');
     const savedRole = localStorage.getItem('locats_role');
-    if (savedToken && savedRole) {
-      window.location.href = savedRole === 'admin' ? '/admin' : '/citizen';
-      return (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#F6FAFD' }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ width: 52, height: 52, borderRadius: 14, background: 'linear-gradient(135deg, #16A34A, #0D9488)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontWeight: 800, fontSize: 22, color: '#fff' }}>L</div>
-            <div style={{ fontSize: 14, color: '#94A3B8', fontWeight: 500 }}>Redirecting...</div>
-          </div>
-        </div>
-      );
+    if (savedToken && savedRole && !localStorage.getItem('_auth_verifying')) {
+      localStorage.setItem('_auth_verifying', '1');
+      // Fire-and-forget: verify token, if valid the AuthContext will pick it up
+      fetch(`${API}/auth/me`, { headers: { 'Authorization': `Bearer ${savedToken}` } })
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then(d => {
+          // Token is valid — AuthContext will handle it on next render
+          localStorage.removeItem('_auth_verifying');
+        })
+        .catch(() => {
+          localStorage.removeItem('locats_token');
+          localStorage.removeItem('locats_role');
+          localStorage.removeItem('locats_user_email');
+          localStorage.removeItem('_auth_verifying');
+        });
     }
     return <LandingPage />;
   }
@@ -509,10 +569,15 @@ function AppContent() {
   // Logged in — determine role and route accordingly
   const role = authRole || profile?.role || 'citizen';
 
-  // Citizens must NOT see admin dashboard
+  // Citizens see the citizen portal directly (no redirect, no extra network call)
   if (role === 'citizen') {
-    window.location.href = '/citizen';
-    return null;
+    return (
+      <div style={{ minHeight: '100vh', background: '#F0F9F4' }}>
+        <Suspense fallback={<div style={{ padding: 40, textAlign: 'center', color: '#94A3B8' }}>Loading...</div>}>
+          <CitizenPortal />
+        </Suspense>
+      </div>
+    );
   }
 
   // Admin/operator portal — auth required
@@ -602,39 +667,45 @@ function AppContent() {
 }
 
 function CitizenWrapper() {
-  // Citizen portal uses its own auth check via localStorage
-  const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const token = localStorage.getItem('locats_token');
+  const role = localStorage.getItem('locats_role');
+  const cachedEmail = localStorage.getItem('locats_user_email');
+
+  const [user, setUser] = useState(() => {
+    if (!token) return null;
+    // Instant render from cache
+    return { email: cachedEmail || '' };
+  });
+  const [profile, setProfile] = useState(() => {
+    if (!token) return null;
+    return { role: role || 'citizen', email: cachedEmail || '' };
+  });
 
   useEffect(() => {
-    const token = localStorage.getItem('locats_token');
-    const role = localStorage.getItem('locats_role');
     if (!token) {
-      // Not logged in — go to login
       window.location.href = '/';
       return;
     }
-    // Verify token is still valid
+    // Verify token in background (don't block UI)
     fetch('/api/auth/me', { headers: { 'Authorization': `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(d => {
         setUser(d.user);
         setProfile({ role: role || 'citizen', email: d.user?.email });
-        setLoading(false);
       })
       .catch(() => {
         localStorage.removeItem('locats_token');
         localStorage.removeItem('locats_role');
+        localStorage.removeItem('locats_user_email');
         window.location.href = '/';
       });
   }, []);
 
-  if (loading) return (
+  if (!user) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F0F9F4' }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{ width: 52, height: 52, borderRadius: 14, background: 'linear-gradient(135deg, #16A34A, #0D9488)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontWeight: 800, fontSize: 22, color: '#fff' }}>L</div>
-        <div style={{ fontSize: 14, color: '#6B7280' }}>Loading citizen portal...</div>
+        <div style={{ fontSize: 14, color: '#6B7280' }}>Redirecting to login...</div>
       </div>
     </div>
   );
@@ -642,6 +713,7 @@ function CitizenWrapper() {
   const handleLogout = () => {
     localStorage.removeItem('locats_token');
     localStorage.removeItem('locats_role');
+    localStorage.removeItem('locats_user_email');
     window.location.href = '/';
   };
 

@@ -92,6 +92,67 @@ async def startup_event():
     except Exception as e:
         print(f"  Startup failed: {e}")
         import traceback; traceback.print_exc()
+    # Preload auth users into memory for instant login
+    try:
+        from backend.app.utils.local_auth import preload_users
+        preload_users()
+        print("  Auth: ready (users preloaded)")
+    except Exception as e:
+        print(f"  Auth init: skipped ({e})")
+    # Auto-create local_users table if Management API token is available
+    try:
+        from backend.app.utils.db_fix import _run_sql, _get_mgmt_token
+        if _get_mgmt_token():
+            result = _run_sql("""
+CREATE OR REPLACE FUNCTION exec_sql(sql_query TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE result JSONB;
+BEGIN
+  EXECUTE sql_query;
+  GET DIAGNOSTICS result = ROW_COUNT;
+  RETURN jsonb_build_object('ok', true, 'rows_affected', result);
+EXCEPTION WHEN OTHERS THEN
+  RETURN jsonb_build_object('ok', false, 'error', SQLERRM);
+END;
+$$;
+
+CREATE TABLE IF NOT EXISTS local_users (
+  id TEXT PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  full_name TEXT DEFAULT '',
+  role TEXT DEFAULT 'citizen',
+  district TEXT DEFAULT 'Chamoli',
+  phone TEXT DEFAULT '',
+  is_active BOOLEAN DEFAULT true,
+  password_hash TEXT NOT NULL,
+  salt TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_local_users_email ON local_users (email);
+ALTER TABLE local_users ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE policyname = 'local_users_full_access' AND tablename = 'local_users'
+  ) THEN
+    CREATE POLICY "local_users_full_access" ON local_users
+      FOR ALL USING (true) WITH CHECK (true);
+  END IF;
+END $$;
+            """)
+            if result.get("ok"):
+                print("  Auth: local_users table ready")
+                from backend.app.utils import local_auth
+                local_auth._table_verified = False
+            else:
+                print(f"  Auth: table setup skipped ({result.get('error', '')[:80]})")
+        else:
+            print("  Auth: no SUPABASE_MGMT_TOKEN — run migrations/create_local_users_table.sql manually")
+    except Exception as e:
+        print(f"  Auth table setup: skipped ({e})")
     print("=" * 60)
 
 

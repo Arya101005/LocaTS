@@ -19,7 +19,7 @@ export default function LoginPage() {
         await login(email, password);
       } else {
         const res = await signup(email, password, name);
-        setSuccess(res.message || 'Account created. Check your email for confirmation.');
+        setSuccess(res.message || 'Account created. Please sign in.');
         setMode('login');
       }
     } catch (err) { setError(err.message); }
