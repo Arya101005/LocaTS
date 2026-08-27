@@ -1,12 +1,17 @@
 {
-    "buildCommand": "cd frontend && npm install && npm run build",
-    "outputDirectory": "frontend/dist",
     "builds": [
         {
             "src": "api/index.py",
             "use": "@vercel/python",
             "config": {
                 "includeFiles": ["backend/**"]
+            }
+        },
+        {
+            "src": "frontend/package.json",
+            "use": "@vercel/static-build",
+            "config": {
+                "distDir": "dist"
             }
         }
     ],
@@ -17,11 +22,11 @@
         },
         {
             "src": "/(.+\\.(js|css|json|png|jpg|ico|svg|woff|woff2|ttf|eot|map))",
-            "dest": "/$1"
+            "dest": "/frontend/dist/$1"
         },
         {
             "src": "/(.*)",
-            "dest": "/index.html"
+            "dest": "/frontend/dist/index.html"
         }
     ],
     "env": {
