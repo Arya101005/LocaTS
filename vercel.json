@@ -21,12 +21,12 @@
             "dest": "/api/index.py"
         },
         {
-            "src": "(.+\\.(js|css|json|png|jpg|ico|svg|woff|woff2|ttf|eot))",
-            "dest": "/frontend/dist/$1"
+            "src": "/(.+\\.(js|css|json|png|jpg|ico|svg|woff|woff2|ttf|eot|map|html))",
+            "dest": "/$1"
         },
         {
             "src": "/(.*)",
-            "dest": "/frontend/dist/index.html"
+            "dest": "/index.html"
         }
     ],
     "env": {
