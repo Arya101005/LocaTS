@@ -227,8 +227,17 @@ END $$;
     print("=" * 60)
 
 
-@app.get("/health")
+@app.get("/api/health")
 async def health():
+    return {"status": "ok", "version": "2.0.0",
+            "layers": {"hazard_fusion": "operational",
+                       "capacity_graph": "operational" if st.graph_data else "not_loaded",
+                       "optimizer": "operational" if st.optimizer else "not_initialized"}}
+
+
+# Keep local dev health endpoint too
+@app.get("/health")
+async def health_dev():
     return {"status": "ok", "version": "2.0.0",
             "layers": {"hazard_fusion": "operational",
                        "capacity_graph": "operational" if st.graph_data else "not_loaded",
