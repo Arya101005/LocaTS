@@ -28,5 +28,9 @@ Thumbs.db
 .vscode/
 
 # App caches
+.locats_auth_users.json
+backend.log
+frontend.log
+.kilo/
 cache/
 .freebuff/

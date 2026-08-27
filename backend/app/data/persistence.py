@@ -351,7 +351,7 @@ class PersistenceLayer:
                 "order_id": order.get("order_id", ""),
                 "district": order.get("district", ""),
                 "audit_hash": order.get("audit_hash", ""),
-                "data": json.dumps(order),
+                "data": json.dumps(order, default=str),
             }
             self._table("relocation_orders").upsert(row, on_conflict="order_id").execute()
             return True
@@ -376,6 +376,28 @@ class PersistenceLayer:
         except Exception as e:
             logger.warning(f"  Load relocation orders failed: {e}")
             return []
+
+    def save_crowd_report(self, report: dict) -> bool:
+        if not self.client:
+            return False
+        try:
+            row = {
+                "id": report.get("id", ""),
+                "reporter_id": report.get("reporter_id", ""),
+                "hazard_type": report.get("hazard_type", ""),
+                "severity_estimate": report.get("severity_estimate", 0.5),
+                "description": report.get("description", ""),
+                "lat": report.get("lat", 30.40),
+                "lon": report.get("lon", 79.33),
+                "timestamp": report.get("timestamp", datetime.utcnow().isoformat()),
+                "district": report.get("district", "Chamoli"),
+                "data": json.dumps(report, default=str),
+            }
+            self._table("crowd_reports").upsert(row, on_conflict="id").execute()
+            return True
+        except Exception as e:
+            logger.warning(f"  Save crowd report failed: {e}")
+            return False
 
     def load_crowd_reports(self, limit: int = 100) -> list[dict]:
         if not self.client:

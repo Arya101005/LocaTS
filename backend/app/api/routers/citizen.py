@@ -24,6 +24,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 import backend.app.api.state as st
+from backend.app.data.persistence import persistence
 from backend.app.models.domain import (
     CrowdReport, EvacueeRegistration, FamilySearch,
     EvacueeStatusUpdate, HazardType,

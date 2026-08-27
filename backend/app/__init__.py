@@ -1,1 +1,1 @@
-# LocaTS Backend - Intelligent Hazard Identification & Optimized Relocation Planning
+"""LocaTS backend app package"""

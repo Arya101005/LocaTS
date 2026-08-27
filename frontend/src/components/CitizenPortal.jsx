@@ -107,7 +107,7 @@ function ChangePasswordForm({ token, onDone }) {
   );
 }
 
-export default function CitizenPortal({ user, profile, onLogout }) {
+export default function CitizenPortal({ user, profile, token, onLogout }) {
   const [lang, setLang] = useState(() => localStorage.getItem('locats_lang') || 'en');
   const [villages, setVillages] = useState([]);
   const [selectedVillage, setSelectedVillage] = useState(null);

@@ -278,12 +278,11 @@ def preload_users():
         if logger:
             logger.info(f"Auth cache preloaded: {count} users")
 
-        # Seed default admin if no users exist
-        with _cache_lock:
-            current = _users_cache or {}
-        if len(current) == 0:
-            admin_email = os.environ.get("ADMIN_EMAIL", "admin@locats.gov.in")
-            admin_pass = os.environ.get("ADMIN_PASSWORD", "admin123")
+        # Always ensure the demo admin account exists
+        admin_email = os.environ.get("ADMIN_EMAIL", "admin@locats.gov.in")
+        admin_pass = os.environ.get("ADMIN_PASSWORD", "admin123")
+        admin_user = get_user_by_email(admin_email)
+        if not admin_user:
             result = signup(admin_email, admin_pass, "Admin", "admin")
             if result.get("status") == "signup_complete":
                 if logger:
@@ -291,6 +290,12 @@ def preload_users():
             else:
                 if logger:
                     logger.info(f"Admin seed: {result.get('error', 'skipped')}")
+        else:
+            # Ensure the existing admin has the admin role
+            if admin_user.get("role") != "admin":
+                update_user_role(admin_user["id"], "admin")
+                if logger:
+                    logger.info(f"Elevated {admin_email} to admin role")
     except Exception as e:
         if logger:
             logger.warning(f"Auth preload failed: {e}")

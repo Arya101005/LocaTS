@@ -27,6 +27,7 @@ from backend.app.models.domain import (
 from backend.app.hazard_fusion.fusion import fuse_hazard_scores
 from backend.app.capacity.graph_builder import CapacityGraphBuilder
 from backend.app.optimizer.optimizer import OptimizationEngine
+from backend.app.data.persistence import persistence
 
 router = APIRouter(tags=["optimizer"])
 

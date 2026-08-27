@@ -778,10 +778,10 @@ function AppContent() {
       <nav className="app-sidebar">
         <div className="sidebar-section">
           <div className="sidebar-label">Navigation</div>
-          {filteredNav.map(item => (
-            <div key={item.id} className={`nav-item ${activeTab === item.id ? 'active' : ''}`} onClick={() => startTransition(() => setActiveTab(item.id))}>
-              <Icon path={item.icon} />
-              <span>{item.label}</span>
+           {filteredNav.map(item => (
+             <div key={item.id} className={`nav-item ${activeTab === item.id ? 'active' : ''}`} onClick={(e) => { e.stopPropagation(); e.preventDefault(); setActiveTab(item.id); }}>
+               <Icon path={item.icon} />
+               <span>{item.label}</span>
               {item.badge && (
                 <span style={{ marginLeft: 'auto', padding: '1px 7px', borderRadius: 10, fontSize: 10, fontWeight: 700, background: item.badge.bg, color: item.badge.color }}>{item.badge.text}</span>
               )}

@@ -28,8 +28,9 @@ time.sleep(2)
 # Start frontend
 print("  [2/3] Starting frontend on port 3000...")
 frontend_dir = os.path.join(DIR, "frontend")
+vite_path = os.path.join(frontend_dir, "node_modules", ".bin", "vite.cmd")
 frontend = subprocess.Popen(
-    ["npx", "vite", "--port", "3000"],
+    [vite_path, "--port", "3000"],
     cwd=frontend_dir,
     stdout=subprocess.DEVNULL,
     stderr=subprocess.DEVNULL,
