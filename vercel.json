@@ -21,16 +21,19 @@
             "dest": "/api/index.py"
         },
         {
-            "src": "/(.+\\.(js|css|json|png|jpg|ico|svg|woff|woff2|ttf|eot|map))",
-            "dest": "/frontend/dist/$1"
+            "src": "/assets/(.*)",
+            "dest": "/frontend/assets/$1"
+        },
+        {
+            "src": "/(citizen|admin|audit)(.*)",
+            "dest": "/frontend/index.html"
         },
         {
             "src": "/(.*)",
-            "dest": "/frontend/dist/index.html"
+            "dest": "/frontend/$1"
         }
     ],
     "env": {
-        "PYTHONPATH": ".",
-        "SUPABASE_MGMT_TOKEN": "@supabase-mgmt-token"
+        "PYTHONPATH": "."
     }
 }
